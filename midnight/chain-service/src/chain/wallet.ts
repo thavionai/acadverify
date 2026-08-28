@@ -133,3 +133,49 @@ export async function waitForSync(facade: WalletFacade, timeoutMs = 120_000) {
 
 export const nightBalanceOf = (state: any): bigint =>
   BigInt(state?.unshielded?.balances?.[ledger.nativeToken().raw] ?? 0n);
+
+/**
+ * Keep the latest wallet state in a holder so /chain/health can report real
+ * values without blocking on an observable.
+ *
+ * Returns an unsubscribe function; the caller must call it on shutdown or the
+ * subscription keeps the process alive.
+ */
+export interface WalletSnapshot {
+  synced: boolean;
+  nightBalance: bigint | null;
+  dustBalance: bigint | null;
+  error?: string;
+}
+
+export function trackWalletState(facade: WalletFacade): {
+  read: () => WalletSnapshot;
+  stop: () => void;
+} {
+  let snapshot: WalletSnapshot = { synced: false, nightBalance: null, dustBalance: null };
+
+  const sub = facade.state().subscribe({
+    next: (s: any) => {
+      let dust: bigint | null = null;
+      try {
+        dust = s?.dust?.balance ? BigInt(s.dust.balance(new Date())) : null;
+      } catch {
+        dust = null;
+      }
+      snapshot = {
+        synced: Boolean(s?.isSynced),
+        nightBalance: nightBalanceOf(s),
+        dustBalance: dust,
+      };
+    },
+    error: (e: unknown) => {
+      snapshot = {
+        ...snapshot,
+        synced: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    },
+  });
+
+  return { read: () => snapshot, stop: () => sub.unsubscribe() };
+}

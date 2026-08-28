@@ -6,6 +6,7 @@ import type { Logger } from "../logging.js";
 import { redactWitness } from "../logging.js";
 import type { ChainAdapter } from "../chain/ports.js";
 import { AppError, isAppError, type ErrorCode } from "./errors.js";
+import { buildOpenApiDocument } from "./openapi.js";
 import {
   AuthorizeIssuerRequestSchema,
   IssueRequestSchema,
@@ -35,6 +36,12 @@ export function createApp(adapter: ChainAdapter, config: Config, logger: Logger)
       if (forced) return next(new AppError(forced as ErrorCode));
     }
     next();
+  });
+
+  // Machine-readable contract, generated from the same zod schemas the routes
+  // validate against, so it cannot drift from actual behaviour.
+  app.get("/chain/openapi.json", (_req, res) => {
+    res.status(200).json(buildOpenApiDocument(adapter.mode));
   });
 
   app.get(

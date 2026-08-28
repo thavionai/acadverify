@@ -12,7 +12,12 @@ import { loadCompiledContract, ledger, pureCircuits } from "./contract.js";
 import { CircuitAssertError, proveLocally } from "./localProve.js";
 import { createProviders, PRIVATE_STATE_ID, type Providers } from "./providers.js";
 import { TxQueue } from "./txQueue.js";
-import { buildWallet, waitForSync, type WalletContext } from "./wallet.js";
+import {
+  buildWallet,
+  trackWalletState,
+  waitForSync,
+  type WalletContext,
+} from "./wallet.js";
 import { emptyWorkingSet, type AcadPrivateState, type CredentialDataWitness } from "./witnesses.js";
 import type {
   ChainAdapter,
@@ -51,6 +56,7 @@ class LiveChainAdapter implements ChainAdapter {
     private readonly contractAddress: string,
     private readonly vault: Vault,
     private readonly ownerSk: Uint8Array,
+    private readonly wallet_: { read: () => import("./wallet.js").WalletSnapshot; stop: () => void },
   ) {}
 
   /** Swap the witness working set. Always called inside the queue. */
@@ -106,14 +112,21 @@ class LiveChainAdapter implements ChainAdapter {
       }),
       probe(`${this.config.MIDNIGHT_PROOF_SERVER_URL}/health`),
     ]);
-    const walletState: any = await this.wallet.facade.state?.().pipe?.length;
+    // Real wallet state, not a hardcoded optimistic guess. SRE alarms on this
+    // endpoint, so reporting synced:true unconditionally would hide exactly the
+    // failure it exists to catch: a desynced wallet or exhausted DUST, either of
+    // which makes every issuance fail while the service still looks healthy.
+    const w = this.wallet_.read();
     return {
-      ok: node.ok && indexer.ok && proofServer.ok,
+      ok: node.ok && indexer.ok && proofServer.ok && w.synced,
       mode: this.mode,
       networkId: this.config.MIDNIGHT_NETWORK_ID,
       contractAddress: this.contractAddress,
       services: { node, indexer, proofServer },
-      wallet: { synced: true, dustAvailable: walletState ? null : null },
+      wallet: {
+        synced: w.synced,
+        dustAvailable: w.dustBalance === null ? null : w.dustBalance.toString(),
+      },
     };
   }
 
@@ -287,6 +300,8 @@ class LiveChainAdapter implements ChainAdapter {
   }
 
   async close(): Promise<void> {
+    // Unsubscribe first: a live subscription keeps the process alive.
+    this.wallet_.stop();
     await this.vault.close();
     await this.wallet.facade.stop();
   }
@@ -320,6 +335,7 @@ export async function createLiveAdapter(config: Config, logger: Logger): Promise
 
   const wallet = await buildWallet(seed, config);
   await waitForSync(wallet.facade);
+  const walletTracker = trackWalletState(wallet.facade);
   const providers = await createProviders(config, wallet);
 
   const contract = await findDeployedContract(providers as never, {
@@ -340,5 +356,6 @@ export async function createLiveAdapter(config: Config, logger: Logger): Promise
     address,
     new Vault(config.MIDNIGHT_PRIVATE_STATE_PATH + "/vault"),
     ownerSk,
+    walletTracker,
   );
 }
