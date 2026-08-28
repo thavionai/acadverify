@@ -1,5 +1,11 @@
 # AcadVerify — Architecture
 
+> **Midnight integration (hackathon pivot):** the chain layer now targets the
+> **Midnight network** — a Compact smart contract with zero-knowledge verification,
+> reached from FastAPI via a Node/TS chain-service (MidnightJS has no Python bindings).
+> See `midnight-integration.md` for the updated chain architecture; the EVM design
+> below is retained as the Cross-Chain stretch (public anchor on Polygon).
+
 ## Problem Statement
 
 Academic credential fraud continues to be a significant issue worldwide.

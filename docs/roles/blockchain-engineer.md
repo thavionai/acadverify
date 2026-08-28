@@ -6,11 +6,11 @@ Own the on-chain layer of AcadVerify: `AcademicCredential.sol` and everything th
 
 ## Owns
 
-- Solidity
-- Hardhat
-- Smart Contracts (`blockchain/contracts/`)
-- Contract Testing (`blockchain/test/`)
-- Testnet Deployment (Polygon Amoy / Base Sepolia)
+- Compact (Midnight smart contract language) — primary, see `../midnight-integration.md`
+- Midnight local devnet + testnet deployment
+- Solidity / Hardhat (`blockchain/contracts/`) — Cross-Chain stretch
+- Contract Testing
+- Chain-service contract API handoff (compiled TS API + keys)
 
 ## Responsibilities
 

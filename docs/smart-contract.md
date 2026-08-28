@@ -1,5 +1,10 @@
 # AcadVerify — Smart Contract Design
 
+> **Midnight integration (hackathon pivot):** the primary contract is now
+> `academic_credential.compact` on the Midnight network — see `midnight-integration.md`.
+> The Solidity design below is retained for the Cross-Chain stretch track
+> (public existence anchor on Polygon while Midnight holds the private logic).
+
 ## Primary Contract
 
 ```

@@ -8,8 +8,9 @@ Install on your machine:
 
 - **Docker Desktop** (includes Docker Compose) — https://www.docker.com/products/docker-desktop
 - **Git**
-- **Node.js 20+** (frontend + Hardhat tooling outside containers)
+- **Node.js 22+** (frontend, chain-service, and Midnight tooling — Midnight requires v22+)
 - **Python 3.12+** (backend tooling outside containers)
+- **Compact compiler** (Midnight toolchain — see `midnight-integration.md`)
 - A GitHub account with access to `thavionai/acadverify`
 
 Verify:
@@ -113,16 +114,19 @@ docker compose down -v             # stop and wipe data (fresh start)
 
 ### Blockchain Engineer (`feature/blockchain`)
 
+**Primary target is now Midnight** — full steps in `docs/midnight-integration.md`. Quick start:
+
 ```bash
-mkdir blockchain && cd blockchain
-npx hardhat init          # TypeScript project
-npm i @openzeppelin/contracts
+git clone https://github.com/midnightntwrk/example-hello-world.git
+cd example-hello-world && yarn install
+yarn env:up        # local devnet + proof server (Docker must be running)
+yarn test:local    # compile, deploy, exercise the contract
 ```
 
-1. Implement `contracts/AcademicCredential.sol` per `docs/smart-contract.md`.
-2. Write tests in `test/`, run `npx hardhat test`.
-3. Run a local node (`npx hardhat node`, or uncomment the `hardhat` service in `docker-compose.yml` once you add a Dockerfile) and deploy: `npx hardhat run scripts/deploy.ts --network localhost`.
-4. Share the deployed address + ABI with the backend engineer (commit `deployments/localhost.json`).
+1. Port the pattern into `midnight/` in our repo; implement `contracts/academic_credential.compact`.
+2. `compact compile` generates the TS contract API + ZK keys the chain-service imports.
+3. Deploy to local devnet, then Midnight testnet (tDUST from the faucet).
+4. (Stretch, Cross-Chain track) the Hardhat/Solidity flow per `docs/smart-contract.md`.
 
 ### Backend Engineer (`feature/backend`)
 

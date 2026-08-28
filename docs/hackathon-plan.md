@@ -1,12 +1,20 @@
 # AcadVerify — Hackathon Plan
 
+## The event
+
+**MLH Midnight Virtual Hackathon** — Aug 28–30, 2026 · [event page](https://events.mlh.com/events/14510-midnight-hackathon-august)
+
+- Track: **Integrate Midnight** (stretch: Cross-Chain) — see `midnight-integration.md` for the integration architecture and the deadline-driven 48-hour plan.
+- Submissions via **Devpost**: initial due **Sunday 10:00 AM ET**, final due **Sunday 11:45 AM ET**.
+- Prize: $125 digital gift card per winning team member across four tracks.
+
 ## Project Status
 
 🚧 **Hackathon MVP** — under active development as part of a blockchain hackathon. The goal is a complete end-to-end decentralized academic credential verification platform demonstrating blockchain, cloud-native architecture, DevOps practices, and secure credential management.
 
 ## Pitch (30 seconds)
 
-Fake degrees are a global problem, and verifying a real one takes weeks of emails. AcadVerify lets a university issue credentials whose SHA256 hashes are anchored on a public blockchain — so an employer can verify a degree in five seconds from a QR code, without trusting us. No personal data ever touches the chain.
+Fake degrees are a global problem, and verifying a real one takes weeks of emails — or worse, means handing over your whole transcript. AcadVerify lets a university issue credentials on **Midnight**, so an employer can verify in five seconds from a QR code that a degree is valid, non-revoked, and from an authorized issuer — **via a zero-knowledge proof that reveals only what the student consents to share**. Not even hashes of personal data touch the chain.
 
 ## Development Roadmap
 
@@ -16,18 +24,19 @@ Fake degrees are a global problem, and verifying a real one takes weeks of email
 - [ ] Setup project structure
 - [ ] Configure branching strategy
 
-### Phase 2 — Blockchain
+### Phase 2 — Blockchain (Midnight)
 
-- [ ] Smart contract (`AcademicCredential.sol`)
-- [ ] Unit tests
-- [ ] Testnet deployment (Polygon Amoy / Base Sepolia)
+- [ ] Compact contract (`academic_credential.compact`) — see `midnight-integration.md`
+- [ ] Unit tests on local devnet
+- [ ] Midnight testnet deployment (tDUST funded)
+- [ ] (Stretch, Cross-Chain track) `AcademicCredential.sol` public anchor on Polygon Amoy
 
 ### Phase 3 — Backend
 
 - [ ] REST APIs (FastAPI)
-- [ ] Blockchain integration (Web3.py)
+- [ ] Chain-service sidecar (Node/TS + MidnightJS) — FastAPI calls it over HTTP
 - [ ] QR generation
-- [ ] Hash generation
+- [ ] Commitment/hash generation
 
 ### Phase 4 — Frontend
 

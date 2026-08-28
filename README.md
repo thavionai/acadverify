@@ -17,7 +17,8 @@ All project documentation lives in [`docs/`](docs/):
 | [Local Setup](docs/local-setup.md) | How to start developing on your machine with Docker |
 | [Architecture](docs/architecture.md) | Problem statement, solution, high-level architecture, technology stack, user workflow |
 | [API Specification](docs/api-spec.md) | Backend REST API endpoints, verification responses, error semantics |
-| [Smart Contract](docs/smart-contract.md) | `AcademicCredential.sol` design, on-chain data, events, access control |
+| [Midnight Integration](docs/midnight-integration.md) | Midnight network privacy layer — Compact contract, ZK verification, hackathon tracks |
+| [Smart Contract](docs/smart-contract.md) | `AcademicCredential.sol` design (Cross-Chain stretch), on-chain data, events, access control |
 | [Data Model](docs/data-model.md) | On-chain record, DynamoDB tables, S3 layout, hashing rules |
 | [Deployment](docs/deployment.md) | AWS infrastructure, Terraform, Docker, CI/CD, monitoring, secrets |
 | [Hackathon Plan](docs/hackathon-plan.md) | Roadmap phases, demo storyline, team workstreams, future enhancements |

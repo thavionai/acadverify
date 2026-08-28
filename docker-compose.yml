@@ -28,7 +28,15 @@ services:
     volumes:
       - minio-data:/data
 
-  # Local blockchain node — enable once blockchain/ exists (Phase 2)
+  # Midnight proof server — generates ZK proofs for transactions (Phase 2).
+  # The midnight/ example tooling can also manage this via `yarn env:up`;
+  # verify the image tag against docs.midnight.network before enabling.
+  # proof-server:
+  #   image: midnightnetwork/proof-server:latest
+  #   ports:
+  #     - "6300:6300"
+
+  # Local EVM node — Cross-Chain stretch track only (see docs/smart-contract.md)
   # hardhat:
   #   build: ./blockchain
   #   command: npx hardhat node --hostname 0.0.0.0
