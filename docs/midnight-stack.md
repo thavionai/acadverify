@@ -32,17 +32,33 @@ student consented to reveal.
 | Component | Version | How verified |
 |---|---|---|
 | Compact developer tools (`compact` CLI) | **0.5.2** | ✅ `compact --version` |
-| Compact compiler (toolchain) | **0.34.0** | ✅ `compact update` / `compact list` |
-| Compact **language version** | **0.26.0** | ✅ `compact compile --language-version` |
-| Compact runtime | **0.19.0** | ✅ emitted in `compiler/contract-info.json` |
+| Compact compiler (toolchain) | **0.31.1** — *not the latest* | ✅ pinned in `npm run compact` |
+| Compact **language version** | **0.23.0** | ✅ `compact compile +0.31.1 --language-version` |
+| Compact runtime | **0.16.0** | ✅ `checkRuntimeVersion('0.16.0')` in the generated contract |
+| `@midnight-ntwrk/compact-js` | **2.5.1** — *not 2.5.3* | ✅ installs; 2.5.3 does not |
+| `@midnight-ntwrk/ledger-v8` | **8.1.0** exactly | ✅ npm `overrides` forces one copy |
 | Midnight.js SDK (`@midnight-ntwrk/midnight-js-*`) | **4.1.1** (lockstep) | Midnight Expert `midnight-dapp-dev:midnight-sdk` |
 | DApp Connector API | **4.0.1** | Midnight Expert `midnight-dapp-dev:dapp-connector` |
-| Indexer | **4.3.3** | Midnight Expert `midnight-indexer:indexer-architecture` |
+| Indexer | **4.2.1** | ✅ pinned and running in `docker-compose.yml` |
 | Node.js | **22+** required | ✅ installed v22.23.2 |
 
-> **Pragma:** contracts must declare `pragma language_version >= 0.26;`.
-> An older pragma such as `>= 0.16` still compiles (it is a *minimum*) but
-> signals a stale design — the syntax in those older docs has moved on.
+> **Pragma:** contracts declare `pragma language_version >= 0.23;` — the version
+> compiler 0.31.1 supports.
+
+### ⚠️ Do not "upgrade" these versions
+
+Newer is actively wrong here, and each mismatch fails far from its cause. All
+three of the following were hit and resolved during Phase 3:
+
+| Tempting change | What actually happens |
+|---|---|
+| Compile with Compact **0.34.0** (the latest) | It emits code requiring runtime **0.19.0**, but `compact-js` and `midnight-js-protocol` pin runtime **0.16.0**. The SDK then executes the contract on the wrong runtime and dies inside `decodeZswapLocalState` with *"Cannot read properties of undefined (reading 'coinPublicKey')"*. |
+| `compact-js` **2.5.3** | Declares a dependency on `ledger-v9@^0.1.0-alpha.1`, which was **never published** — `npm install` fails outright. The `2.5.5-rc.*` line moves to `ledger-v9`, which conflicts with the wallet SDK's `ledger-v8`: a different stack, not an upgrade. |
+| `ledger-v8` **8.1.1** | `midnight-js-protocol` pins **exactly 8.1.0**, so a second copy is installed. WASM classes are not `instanceof`-compatible across module instances, surfacing as *"expected instance of LedgerParameters"* deep inside fee balancing. |
+
+**The compiler must match the SDK's runtime, not the other way round.** The
+authority is `checkRuntimeVersion(...)` in the generated `contract/index.js` —
+trust it over any documented version, including this table.
 
 All SDK packages are on the **public npm registry** under the `@midnight-ntwrk`
 scope. Do not configure custom registries or `.npmrc` overrides.

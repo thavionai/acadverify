@@ -109,7 +109,7 @@ acadverify/
 
 ## Stack
 
-**Chain / privacy** — Compact 0.34.0 (language 0.26.0) · Midnight proof server ·
+**Chain / privacy** — Compact 0.31.1 (language 0.23.0, runtime 0.16.0) · Midnight proof server ·
 indexer (GraphQL) · Midnight node · networks `undeployed` → `preview`
 
 **Chain-service** — Node 22 · TypeScript · Midnight.js SDK 4.1.1
