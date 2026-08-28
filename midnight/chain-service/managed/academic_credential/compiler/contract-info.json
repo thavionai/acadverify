@@ -4,6 +4,24 @@
   "runtime-version": "0.19.0",
   "circuits": [
     {
+      "name": "publicKey",
+      "pure": true,
+      "proof": false,
+      "arguments": [
+        {
+          "name": "sk",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
       "name": "authorizeIssuer",
       "pure": false,
       "proof": true,
