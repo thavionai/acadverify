@@ -38,7 +38,7 @@
 
 ### Phase 1 — Setup ✅
 - [x] Repo, docs, branching
-- [x] Node 22, Compact toolchain (0.34.0 / language 0.26.0)
+- [x] Node 22, Compact toolchain (0.31.1 / language 0.23.0 / runtime 0.16.0)
 - [x] Midnight plugin suite (16 plugins, 88 skills)
 - [x] Local devnet: node + indexer + proof server, verified responding
 - [x] `academic_credential.compact` compiles — 4 circuits, keys, TS API

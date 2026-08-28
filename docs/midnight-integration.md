@@ -125,7 +125,7 @@ plugin reference is what caught:
 
 | What the generic design said | What the plugins established | Consequence if missed |
 |---|---|---|
-| `pragma language_version >= 0.16` | Current is `>= 0.26`; compiler 0.34.0 | Stale syntax, confusing errors |
+| `pragma language_version >= 0.16` | `>= 0.23` with compiler 0.31.1 — the version whose runtime (0.16.0) the SDK is built against | Stale syntax; and using the *latest* compiler instead breaks the SDK |
 | Deploy to "testnet" | Networks are `undeployed` / `preview` / `preprod` | Wrong endpoints, lost time |
 | Link to a block explorer | No explorer exists; use indexer GraphQL | A demo feature that cannot be built |
 | `Set` for private membership | `Set.member` reveals the element; `MerkleTree` hides it | Overclaiming privacy to judges |
@@ -173,7 +173,7 @@ Verified locally on 2026-08-28:
 |---|---|
 | Contract compiles | ✅ 4 circuits, prover+verifier keys, TS API emitted |
 | Selective disclosure is real | ✅ `contract-info.json` records `proveCredential`'s result as exactly 4 fields; `studentId` absent |
-| Toolchain versions | ✅ `compact` 0.5.2, compiler 0.34.0, language 0.26.0, runtime 0.19.0 |
+| Toolchain versions | ✅ `compact` 0.5.2, compiler 0.31.1, language 0.23.0, runtime 0.16.0 |
 | Devnet runs | ✅ node + indexer + proof server all responding |
 | Indexer serves real data | ✅ `{ block { height hash } }` returned a block from the local chain |
 | Image tags exist | ✅ node 0.22.5, indexer-standalone 4.2.1, proof-server 8.1.0 |
