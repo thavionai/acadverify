@@ -44,15 +44,15 @@
 - [x] `academic_credential.compact` compiles — 4 circuits, keys, TS API
 
 ### Phase 2 — Contract
-- [ ] Tests: happy path + adversarial (wrong witness must fail to prove)
-- [ ] Deploy to local devnet via chain-service
+- [x] Tests: happy path + adversarial (wrong witness must fail to prove) — 54 tests, `midnight/chain-service/test/`
+- [x] Deploy to local devnet via chain-service — `midnight/deployments/undeployed.json`
 - [ ] Deploy to **`preview`** (tDUST from faucet)
 - [ ] Commit `midnight/deployments/preview.json`
 
 ### Phase 3 — Chain-service + backend
-- [ ] Chain-service: six providers wired, HTTP API per `api-spec.md`
+- [x] Chain-service: six providers wired, HTTP API per `api-spec.md`
 - [ ] FastAPI: issue/list/revoke/verify, QR, DynamoDB + S3
-- [ ] Salt generation + private state store
+- [x] Salt generation + private state store — encrypted backup/restore tested, `midnight/chain-service/src/vault/`
 
 ### Phase 4 — Frontend
 - [ ] Public verify page with the four states and the **disclosed / withheld** split

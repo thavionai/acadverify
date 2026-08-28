@@ -17,6 +17,39 @@ fixtures. When live wiring lands, the mode flips and **nothing on your side
 changes** — mock and live are two implementations of one interface behind the
 same routes, schemas, and error mapping.
 
+## Live mode against the local devnet (working now)
+
+```bash
+docker compose up -d node indexer proof-server   # the three Midnight services
+npm run deploy      # deploys the contract, writes ../deployments/undeployed.json
+CHAIN_MODE=live npm start
+npm run smoke        # adapter-level lifecycle check, 11/11
+npm run smoke:http    # the same, but over real HTTP — 13/13
+```
+
+## For the blockchain-engineer teammate: deploying to `preview`
+
+Deploying to `preview` is **your** step, not this service's — see
+`docs/roles/blockchain-engineer.md`. This package owns the *mechanism*
+(`deploy.ts`, the six providers); it works unchanged for `preview`, only the
+network and a funded wallet differ:
+
+1. Get **tDUST** from the Midnight Preview faucet into a wallet address you
+   control. See `docs/midnight-stack.md` §7 for the wallet/network background.
+2. Set `MIDNIGHT_NETWORK_ID=preview` and `MIDNIGHT_WALLET_SEED=<your funded seed>`
+   (never the local devnet's public genesis seed — see `src/keys.ts`).
+3. Run `npm run deploy` from this directory, same as local devnet. It writes
+   `midnight/deployments/preview.json`, and authorizes one demo issuer.
+4. `npm run authorize -- <institutionId>` onboards any additional university
+   onto that deployment without redeploying.
+5. Run `npm run smoke` against it before calling it done — this exercises the
+   real lifecycle (issue → verify → forge → revoke), not just a successful
+   deploy.
+
+Everything else — the HTTP API, error semantics, disclosure behavior — is
+identical to local devnet. Nothing in FastAPI or the frontend needs to know
+which network it's talking to.
+
 ## Endpoints
 
 | Method | Path | Purpose |
