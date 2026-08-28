@@ -1,0 +1,73 @@
+groups:
+  - name: acadverify-system
+    rules:
+      # The three Midnight services are the demo-critical path.
+      - alert: MidnightServiceDown
+        expr: time() - container_last_seen{name=~"midnight-node|midnight-indexer|midnight-proof-server|acadverify.*"} > 60
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "Container {{ $labels.name }} has disappeared"
+          description: "Not seen by cAdvisor for >60s. The devnet is not one container — verification dies if any of node/indexer/proof-server is missing."
+
+      - alert: ContainerHighCpu
+        expr: rate(container_cpu_usage_seconds_total{name=~".+"}[5m]) > 0.9
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.name }} sustained >90% of one core"
+          description: "Expected briefly for the proof server during proving; sustained means the worker pool is saturated (see docs/deployment.md)."
+
+      - alert: HostMemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "Host has <10% memory available"
+          description: "The proof server is memory-hungry; OOM kills here surface as 503s on /verify."
+
+      - alert: HostDiskLow
+        expr: node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} < 0.10
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Host root filesystem <10% free"
+
+  - name: acadverify-security
+    rules:
+      # Repeated INVALID_PROOF from one source = someone iterating on forged
+      # credentials. This is the fake-certificate detection signal.
+      - alert: FakeCertProbing
+        expr: increase(acadverify_fake_cert_alerts_total[5m]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "Possible forged-credential probing detected"
+          description: "An IP exceeded the INVALID_PROOF threshold and was added to the blocklist. Check the Security dashboard for the source."
+
+      - alert: CredentialEnumeration
+        expr: increase(acadverify_credential_probe_alerts_total[5m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Single credential being verified at abnormal volume"
+          description: "One credentialId is being hammered — scraping/stalking pattern, or a viral share. Investigate before blocking."
+
+      - alert: AnomalousVerificationRate
+        expr: acadverify_verification_rate_zscore > 3
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "Verification traffic anomaly (z-score {{ $value | printf \"%.1f\" }})"
+          description: "Traffic deviates >3 sigma from the learned baseline — spike or drop both matter."
+
+      - alert: ErrorLogBurst
+        expr: increase(acadverify_log_errors_total[5m]) > 20
+        labels: {severity: warning}
+        annotations:
+          summary: "Error-log burst in {{ $labels.container }}"
+
+      - alert: BlocklistGrowing
+        expr: acadverify_blocklist_size > 25
+        labels: {severity: warning}
+        annotations:
+          summary: "IP blocklist exceeds 25 entries"
+          description: "Sustained attack or a false-positive threshold — review before the demo."

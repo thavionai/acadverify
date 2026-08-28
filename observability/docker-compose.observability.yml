@@ -1,0 +1,115 @@
+# AcadVerify — observability stack (SRE)
+# Runs alongside the main compose file, in its own project:
+#
+#   docker compose -f observability/docker-compose.observability.yml -p acadverify-obs up -d
+#
+# Grafana:    http://localhost:3001   (admin / acadverify)
+# Prometheus: http://localhost:9090
+# Loki API:   http://localhost:3100
+#
+# The stack is self-contained: Promtail and cAdvisor read the Docker socket /
+# cgroups, so they see ALL containers on this host (Midnight node, indexer,
+# proof server, DynamoDB, MinIO, and the app services as they land) without
+# joining the app network. See docs/observability.md.
+
+services:
+  # ---- Metrics: Prometheus -------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=3d
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+
+  # ---- Logs: Loki + Promtail (live log monitoring) -------------------------
+  loki:
+    image: grafana/loki:3.1.1
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+
+  # ---- System resources: containers (cAdvisor) + host (node-exporter) -----
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    privileged: true
+
+  # On Docker Desktop (mac/win) this reports the Linux VM, which is what
+  # actually runs the containers — that is the host that matters here.
+  # (`rslave` propagation is unsupported on Docker Desktop; do not add it.)
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    command:
+      - --path.rootfs=/host
+    ports:
+      - "9100:9100"
+    volumes:
+      - /:/host:ro
+
+  # ---- Anomaly detection + fake-cert detection + blocklist ----------------
+  # Polls Loki for verification events and error logs; detects INVALID_PROOF
+  # probing (fake certificate attempts), verification-rate anomalies, and error
+  # bursts; maintains an IP blocklist the backend can enforce.
+  # Exposes Prometheus metrics on :9700. See docs/observability.md §Detector.
+  anomaly-detector:
+    build: ./anomaly-detector
+    ports:
+      - "9700:9700"
+    environment:
+      LOKI_URL: http://loki:3100
+      POLL_SECONDS: "15"
+      INVALID_PROOF_THRESHOLD: "5"     # per IP per window -> fake-cert alert + blocklist
+      CREDENTIAL_PROBE_THRESHOLD: "20" # proofs of one credentialId per window
+      ERROR_BURST_THRESHOLD: "20"      # ERROR lines per container per window
+      WINDOW_MINUTES: "5"
+      ZSCORE_THRESHOLD: "3.0"
+    volumes:
+      - detector-data:/data
+    depends_on:
+      - loki
+
+  # ---- Dashboards: Grafana -------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.1.4
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: acadverify
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  prometheus-data:
+  loki-data:
+  grafana-data:
+  detector-data:
