@@ -14,6 +14,7 @@ All project documentation lives in [`docs/`](docs/):
 
 | Document | Contents |
 |---|---|
+| [Local Setup](docs/local-setup.md) | How to start developing on your machine with Docker |
 | [Architecture](docs/architecture.md) | Problem statement, solution, high-level architecture, technology stack, user workflow |
 | [API Specification](docs/api-spec.md) | Backend REST API endpoints, verification responses, error semantics |
 | [Smart Contract](docs/smart-contract.md) | `AcademicCredential.sol` design, on-chain data, events, access control |

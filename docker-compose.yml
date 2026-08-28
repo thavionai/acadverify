@@ -1,0 +1,67 @@
+# AcadVerify — local development environment
+# Usage: docker compose up -d
+# See docs/local-setup.md for full setup steps.
+#
+# The app services (hardhat, backend, frontend) are commented out until their
+# folders are scaffolded in Phases 2–4. Uncomment each as its code lands.
+
+services:
+  # Local DynamoDB (replaces AWS DynamoDB in dev)
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    command: -jar DynamoDBLocal.jar -sharedDb -dbPath /data
+    ports:
+      - "8000:8000"
+    volumes:
+      - dynamodb-data:/data
+
+  # Local S3-compatible storage (replaces AWS S3 in dev)
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: acadverify
+      MINIO_ROOT_PASSWORD: acadverify123
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    volumes:
+      - minio-data:/data
+
+  # Local blockchain node — enable once blockchain/ exists (Phase 2)
+  # hardhat:
+  #   build: ./blockchain
+  #   command: npx hardhat node --hostname 0.0.0.0
+  #   ports:
+  #     - "8545:8545"
+
+  # FastAPI backend — enable once backend/ exists (Phase 3)
+  # backend:
+  #   build: ./backend
+  #   ports:
+  #     - "8080:8080"
+  #   env_file: .env
+  #   environment:
+  #     DYNAMODB_ENDPOINT: http://dynamodb:8000
+  #     S3_ENDPOINT: http://minio:9000
+  #     RPC_URL: http://hardhat:8545
+  #   depends_on:
+  #     - dynamodb
+  #     - minio
+  #   volumes:
+  #     - ./backend:/app   # hot reload
+
+  # Next.js frontend — enable once frontend/ exists (Phase 4)
+  # frontend:
+  #   build: ./frontend
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     NEXT_PUBLIC_API_URL: http://localhost:8080/api/v1
+  #   volumes:
+  #     - ./frontend:/app
+  #     - /app/node_modules
+
+volumes:
+  dynamodb-data:
+  minio-data:
