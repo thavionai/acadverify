@@ -7,8 +7,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "compact": "compact compile ../contracts/academic_credential.compact ./managed/academic_credential",
-    "compact:fast": "compact compile -- --skip-zk ../contracts/academic_credential.compact ./managed/academic_credential",
+    "compact": "compact compile +0.31.1 ../contracts/academic_credential.compact ./managed/academic_credential",
+    "compact:fast": "compact compile +0.31.1 -- --skip-zk ../contracts/academic_credential.compact ./managed/academic_credential",
     "build": "tsc",
     "dev": "node --import tsx --watch src/index.ts",
     "start": "node --import tsx src/index.ts",
@@ -22,8 +22,8 @@
   },
   "dependencies": {
     "@midnight-ntwrk/compact-js": "2.5.1",
-    "@midnight-ntwrk/compact-runtime": "0.19.0",
-    "@midnight-ntwrk/ledger-v8": "8.1.1",
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/ledger-v8": "8.1.0",
     "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.1.1",
     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.1.1",
@@ -52,5 +52,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^3.0.0"
+  },
+  "overrides": {
+    "@midnight-ntwrk/ledger-v8": "8.1.0"
   }
 }

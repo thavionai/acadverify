@@ -23,9 +23,14 @@ const issuerSet = (): Partial<PrivateState> => ({
   salt: SALT,
 });
 
-/** Every byte the circuit would publish, flattened to a hex string. */
+/**
+ * Every byte the circuit would publish, flattened to a hex string.
+ *
+ * compact-runtime 0.16 returns proofData directly on the circuit result:
+ * { input, output, publicTranscript, privateTranscriptOutputs }.
+ */
 function publicBytes(raw: any): string {
-  const trace = raw.context.callProofDataTrace ?? [];
+  const pd = raw.proofData;
   const chunks: string[] = [];
   const walk = (v: unknown, depth = 0): void => {
     if (depth > 12 || v == null) return;
@@ -41,9 +46,10 @@ function publicBytes(raw: any): string {
       }
     }
   };
-  for (const entry of trace) {
-    walk({ publicTranscript: entry.publicTranscript, output: entry.output, input: entry.input });
-  }
+  // Only the PUBLIC side: input, output, and the public transcript. The private
+  // transcript is by definition never published, so including it would make the
+  // absence assertions meaningless.
+  walk({ publicTranscript: pd?.publicTranscript, output: pd?.output, input: pd?.input });
   return chunks.join("");
 }
 

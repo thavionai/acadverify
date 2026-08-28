@@ -22,24 +22,24 @@ export type Witnesses<PS> = {
 
 export type ImpureCircuits<PS> = {
   authorizeIssuer(context: __compactRuntime.CircuitContext<PS>,
-                  issuerPk_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, []>>;
-  issue(context: __compactRuntime.CircuitContext<PS>, credentialId_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                  issuerPk_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
+  issue(context: __compactRuntime.CircuitContext<PS>, credentialId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
   revokeCredential(context: __compactRuntime.CircuitContext<PS>,
-                   credentialId_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                   credentialId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
   proveCredential(context: __compactRuntime.CircuitContext<PS>,
                   credentialId_0: Uint8Array,
-                  revealGpa_0: boolean): Promise<__compactRuntime.CircuitResults<PS, DisclosedClaim>>;
+                  revealGpa_0: boolean): __compactRuntime.CircuitResults<PS, DisclosedClaim>;
 }
 
 export type ProvableCircuits<PS> = {
   authorizeIssuer(context: __compactRuntime.CircuitContext<PS>,
-                  issuerPk_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, []>>;
-  issue(context: __compactRuntime.CircuitContext<PS>, credentialId_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                  issuerPk_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
+  issue(context: __compactRuntime.CircuitContext<PS>, credentialId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
   revokeCredential(context: __compactRuntime.CircuitContext<PS>,
-                   credentialId_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                   credentialId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
   proveCredential(context: __compactRuntime.CircuitContext<PS>,
                   credentialId_0: Uint8Array,
-                  revealGpa_0: boolean): Promise<__compactRuntime.CircuitResults<PS, DisclosedClaim>>;
+                  revealGpa_0: boolean): __compactRuntime.CircuitResults<PS, DisclosedClaim>;
 }
 
 export type PureCircuits = {
@@ -47,15 +47,15 @@ export type PureCircuits = {
 }
 
 export type Circuits<PS> = {
-  publicKey(context: __compactRuntime.CircuitContext<PS>, sk_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, Uint8Array>>;
+  publicKey(context: __compactRuntime.CircuitContext<PS>, sk_0: Uint8Array): __compactRuntime.CircuitResults<PS, Uint8Array>;
   authorizeIssuer(context: __compactRuntime.CircuitContext<PS>,
-                  issuerPk_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, []>>;
-  issue(context: __compactRuntime.CircuitContext<PS>, credentialId_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                  issuerPk_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
+  issue(context: __compactRuntime.CircuitContext<PS>, credentialId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
   revokeCredential(context: __compactRuntime.CircuitContext<PS>,
-                   credentialId_0: Uint8Array): Promise<__compactRuntime.CircuitResults<PS, []>>;
+                   credentialId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
   proveCredential(context: __compactRuntime.CircuitContext<PS>,
                   credentialId_0: Uint8Array,
-                  revealGpa_0: boolean): Promise<__compactRuntime.CircuitResults<PS, DisclosedClaim>>;
+                  revealGpa_0: boolean): __compactRuntime.CircuitResults<PS, DisclosedClaim>;
 }
 
 export type Ledger = {
@@ -91,9 +91,8 @@ export declare class Contract<PS = any, W extends Witnesses<PS> = Witnesses<PS>>
   impureCircuits: ImpureCircuits<PS>;
   provableCircuits: ProvableCircuits<PS>;
   constructor(witnesses: W);
-  initialState(context: __compactRuntime.ConstructorContext<PS>): Promise<__compactRuntime.ConstructorResult<PS>>;
+  initialState(context: __compactRuntime.ConstructorContext<PS>): __compactRuntime.ConstructorResult<PS>;
 }
 
 export declare function ledger(state: __compactRuntime.StateValue | __compactRuntime.ChargedState): Ledger;
 export declare const pureCircuits: PureCircuits;
-export declare const expectedVk: Record<string, string>;

@@ -5,8 +5,11 @@
  * no proof server, and no wallet — so the privacy and adversarial properties can
  * be asserted in milliseconds.
  *
- * API note: runtime 0.19 takes `circuitId` as the FIRST argument to
- * createCircuitContext. Older published examples show a 4-arg form without it.
+ * API note: this targets compact-runtime 0.16, which the midnight-js 4.1.1 SDK
+ * pins. There, createCircuitContext takes (address, coinPK, state, privateState)
+ * and both initialState and the circuits are synchronous. Runtime 0.19 inserts a
+ * circuitId first argument and makes everything async — so a harness written
+ * against one will not run on the other.
  */
 import {
   createCircuitContext,
@@ -106,14 +109,14 @@ export class Sim {
   }
 
   private run(name: string, args: unknown[]): Promise<any> {
-    const ctx = createCircuitContext(name, ADDR, COIN_PK, this.state as any, this.active);
+    const ctx = createCircuitContext(ADDR, COIN_PK, this.state as any, this.active);
     return this.contract.circuits[name](ctx, ...args);
   }
 
   /** Call a circuit and COMMIT the resulting state. */
   async call(name: string, ...args: unknown[]): Promise<unknown> {
     const res = await this.run(name, args);
-    this.state = res.context.callContext.currentQueryContext.state;
+    this.state = res.context.currentQueryContext.state;
     return res.result;
   }
 
