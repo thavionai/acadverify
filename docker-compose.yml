@@ -92,23 +92,35 @@ services:
   # ---- App services — enable as their folders land -------------------------
   # chain-service: Node 22 + Midnight.js. FastAPI reaches Midnight only through
   # this sidecar (Midnight.js is TypeScript-only; Web3.py cannot talk to it).
-  # Its image MUST include the compiled keys/ and zkir/ or proving fails.
-  # chain-service:
-  #   build: ./midnight/chain-service
-  #   ports:
-  #     - "8090:8090"
-  #   environment:
-  #     MIDNIGHT_NETWORK_ID: undeployed
-  #     MIDNIGHT_NODE_URL: http://node:9944
-  #     MIDNIGHT_INDEXER_URL: http://indexer:8088/api/v4/graphql
-  #     MIDNIGHT_INDEXER_WS: ws://indexer:8088/api/v4/graphql/ws
-  #     MIDNIGHT_PROOF_SERVER_URL: http://proof-server:6300
-  #   depends_on:
-  #     - node
-  #     - indexer
-  #     - proof-server
-  #   volumes:
-  #     - private-state:/app/.private-state   # witness data — see docs/data-model.md
+  # Its image includes the compiled keys/ and zkir/ or proving fails at runtime.
+  #
+  # CHAIN_MODE=mock serves the identical HTTP contract with deterministic
+  # fixtures, so backend/frontend can build before the live wiring lands.
+  # Flipping to live changes nothing for consumers.
+  chain-service:
+    build: ./midnight/chain-service
+    ports:
+      - "8090:8090"
+    environment:
+      CHAIN_MODE: mock
+      CHAIN_SERVICE_PORT: 8090
+      MIDNIGHT_NETWORK_ID: undeployed
+      MIDNIGHT_NODE_URL: http://node:9944
+      MIDNIGHT_INDEXER_URL: http://indexer:8088/api/v4/graphql
+      MIDNIGHT_INDEXER_WS: ws://indexer:8088/api/v4/graphql/ws
+      MIDNIGHT_PROOF_SERVER_URL: http://proof-server:6300
+      MIDNIGHT_ZK_CONFIG_PATH: ./managed/academic_credential
+      MIDNIGHT_PRIVATE_STATE_PATH: /app/.private-state
+      # Demo-only tamper endpoint. MUST remain false in any deployed config.
+      ALLOW_DEBUG_ENDPOINTS: "false"
+    depends_on:
+      - node
+      - indexer
+      - proof-server
+    volumes:
+      # Witness data (credential fields + salts). Lost => those credentials can
+      # never be proven again. See docs/data-model.md.
+      - private-state:/app/.private-state
 
   # backend:
   #   build: ./backend
