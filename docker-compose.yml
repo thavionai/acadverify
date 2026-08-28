@@ -61,6 +61,17 @@ services:
       - "6300:6300"
     environment:
       RUST_BACKTRACE: "full"
+      # Measured: issuance proving takes ~19s on a developer laptop. The default
+      # is 2 workers, so two concurrent issuances already queue. This raises
+      # THROUGHPUT, not single-proof latency — one proof is still ~19s.
+      MIDNIGHT_PROOF_SERVER_NUM_WORKERS: "4"
+      # Bound the queue so a burst sheds load instead of exhausting memory.
+      # 0 (the default) means unlimited.
+      MIDNIGHT_PROOF_SERVER_JOB_CAPACITY: "32"
+    # No healthcheck on purpose: this image is distroless — it has no sh, curl,
+    # or wget, so any CMD/CMD-SHELL probe fails and pins the service to
+    # "unhealthy" forever. The chain-service probes it over HTTP instead and
+    # reports it as its own entry in GET /chain/health.
 
   # ---- Local DynamoDB (stands in for AWS DynamoDB) -------------------------
   dynamodb:
