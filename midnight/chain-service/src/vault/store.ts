@@ -74,11 +74,24 @@ export class Vault {
     await this.db.put(credentialId, Vault.encode(entry));
   }
 
-  /** Returns null when absent — callers MUST map that to a 503, never to a
-   *  credential verdict. */
+  /**
+   * Returns null when absent — callers MUST map that to a 503, never to a
+   * credential verdict. This is the exact path a wiped private-state volume
+   * takes (see docs/deployment.md), so it has to be right.
+   *
+   * The underlying store is not consistent about HOW it reports "missing":
+   * verified directly against the installed `level` package that `db.get()`
+   * resolves `undefined` for an absent key rather than throwing
+   * LEVEL_NOT_FOUND — so a version that only checked for a thrown error (as
+   * this originally did) never actually triggers, and Vault.decode(undefined)
+   * crashes instead of returning null. Handle BOTH shapes, since different
+   * `level`/`abstract-level` versions or backends could exhibit either.
+   */
   async get(credentialId: string): Promise<VaultEntry | null> {
     try {
-      return Vault.decode(await this.db.get(credentialId));
+      const raw = await this.db.get(credentialId);
+      if (raw === undefined) return null;
+      return Vault.decode(raw);
     } catch (e: unknown) {
       if ((e as { code?: string }).code === "LEVEL_NOT_FOUND") return null;
       throw e;
@@ -87,6 +100,13 @@ export class Vault {
 
   async has(credentialId: string): Promise<boolean> {
     return (await this.get(credentialId)) !== null;
+  }
+
+  /** Walk every entry — the primitive backup.ts is built on. */
+  async *entries(): AsyncGenerator<[string, VaultEntry]> {
+    for await (const [key, value] of this.db.iterator()) {
+      yield [key, Vault.decode(value)];
+    }
   }
 
   async close(): Promise<void> {

@@ -69,6 +69,30 @@ about the credential.
   transaction — publishing a verification would publish the disclosure. See
   `docs/api-spec.md`.
 
+## Vault backup / restore
+
+The witness vault (credential fields + salts) is the one genuinely unrecoverable
+piece of state in this system — see `docs/data-model.md`. Back it up:
+
+```bash
+npm run vault:export -- <passphrase> <outfile>   # AES-256-GCM encrypted, mode 0600
+npm run vault:import -- <passphrase> <infile>    # restores into MIDNIGHT_PRIVATE_STATE_PATH
+```
+
+A wrong passphrase fails loudly (the GCM auth check) rather than importing
+garbage. `test/vault/backup.test.ts` proves a full export → fresh vault → import
+round trip is byte-identical, and that no credential field or salt is ever
+written to the backup file in plaintext.
+
+**Found while building this**, worth knowing: `Vault.get()` on a genuinely
+never-written key used to crash instead of returning `null`, because the
+installed `level` package resolves `db.get()` to `undefined` for a missing key
+rather than throwing — the only case the original code handled. This is the
+exact path `live.ts`'s `prove()` takes after a wiped private-state volume,
+so it had real consequences: instead of the documented `503
+PROOF_MATERIAL_UNAVAILABLE`, a wiped volume would have produced an uncaught
+crash. Fixed and regression-tested directly in `test/vault/store.test.ts`.
+
 ## Cut: the detachable ZK proof bundle (`proof.level: "zk-verified"`)
 
 `ProveResult.proof.level` is typed as `"circuit-checked" | "zk-verified"`, but
