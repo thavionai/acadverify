@@ -43,8 +43,9 @@ withheld).
     "revoked": false,
     "networkId": "preview",
     "contractAddress": "0200…",
-    "txId": "…",
-    "provedAt": "2026-08-30T14:02:11Z"
+    "issuanceTxId": "…",
+    "stateBlockHeight": 1042,
+    "checkedAt": "2026-08-30T14:02:11Z"
   },
   "withheld": ["studentId", "gpa"]
 }
@@ -62,7 +63,13 @@ selective disclosure legible rather than invisible.
 | Proof generation/verification failed | `200` `status: "INVALID_PROOF"` |
 | Unknown `credentialId` | `404 NOT_FOUND` |
 | Proof server unreachable / timed out | `503 PROOF_SERVICE_UNAVAILABLE` |
+| **Witness vault missing for this credential** | **`503 PROOF_MATERIAL_UNAVAILABLE`** |
 | Indexer or node unreachable | `503 CHAIN_UNAVAILABLE` |
+
+`PROOF_MATERIAL_UNAVAILABLE` says our proving material is gone (a wiped volume, a
+fresh clone). It says **nothing** about the credential. Without it as a distinct
+code, losing the private-state volume would render every real degree on the
+platform as forged.
 
 ### Why `TAMPERED` is gone
 
@@ -78,9 +85,30 @@ proof*, which is a statement about our infrastructure. Rendering the second as
 the first would accuse a legitimate graduate of forgery because a container ran
 out of memory. Keep them rigorously distinct in every layer.
 
-**Latency:** this endpoint generates a ZK proof and is CPU-bound on the proof
-server (default 2 workers, 10-min job TTL). It is not a sub-100ms lookup — cache
-results per `(credentialId, disclosure set)` and size the SLO accordingly.
+### Verification does not submit a transaction
+
+The disclosed claim is the circuit's **public output**, so submitting a
+`proveCredential` transaction would permanently publish *"credential X is a 2026
+AI Master's with a 3.9 GPA"* — precisely what `data-model.md` forbids. Instead
+the chain-service executes the compiled circuit locally against live on-chain
+state from the indexer: same asserts, same `persistentCommit`, same commitment
+comparison. The proof goes to the verifier, not the ledger — the same shape as a
+W3C Verifiable Credential presentation.
+
+Consequences:
+
+- `proof.issuanceTxId` refers to **issuance**. Verification has no transaction of
+  its own; do not render one.
+- Verification never touches the proof server, so it is fast and cannot be
+  starved by issuance load.
+- What we may claim: the on-chain commitment could not exist without a
+  network-verified ZK proof from an authorized issuer, and the disclosed fields
+  are produced by the compiled circuit against live chain state.
+  What we may **not** claim: that every verification is verified by the network.
+
+**Measured latency:** issuance proving is **~19s** on a developer laptop.
+Verification is local and fast. Call `POST /chain/issue` from a background task
+and poll `GET /credentials/{id}`; do not block a request on it.
 
 ---
 
@@ -137,6 +165,7 @@ and can generate proofs.
 | `POST` | `/chain/prove` | prove `proveCredential`, return `DisclosedClaim` |
 | `GET` | `/chain/state/{credentialId}` | indexer read: exists / revoked |
 | `GET` | `/chain/health` | proof server + indexer + node reachability |
+| `POST` | `/chain/authorize-issuer` | onboard a university (no other way to do it) |
 
 `/chain/health` must report the three Midnight services **separately** — "the
 chain is down" is not actionable when the node is fine and the proof server is

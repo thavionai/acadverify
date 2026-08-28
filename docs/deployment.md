@@ -7,7 +7,7 @@ Versions, endpoints, and component names: `midnight-stack.md`.
 | Concern | Tool |
 |---|---|
 | **Chain** | **Midnight** — `preview` network (`undeployed` locally) |
-| **Contract** | Compact 0.34.0 → `academic_credential.compact` |
+| **Contract** | Compact 0.31.1 (runtime 0.16.0) → `academic_credential.compact` |
 | **Proving** | Midnight **proof server** (`midnightntwrk/proof-server:<version>`, :6300) |
 | **Chain reads** | Midnight **indexer** GraphQL (:8088, `/api/v4/graphql`) |
 | **Chain RPC** | Midnight **node** (:9944) |
@@ -121,13 +121,16 @@ actionable when the node is healthy and the proof server is saturated.
 
 | Surface | Target |
 |---|---|
-| Public verification endpoint | 99.9% availability, **p95 < 5s** (proof-bound) |
+| Public verification endpoint | 99.9% availability, **p95 < 2s** (local circuit execution, no proof server) |
 | Issuance API (excluding proof) | 99.5% availability |
 | Issue → on-chain confirmed | < 5 min p95 |
 
-The old p95 < 800 ms target was written for an EVM `view` call. Generating a
-SNARK is not a database read; a target that ignores that would have us paging
-on-call for the system working as designed.
+The old p95 < 800 ms target was written for an EVM `view` call. **Measured on a
+developer laptop: issuance proving takes ~19s**; verification is local circuit
+execution and is fast, because it never touches the proof server (see
+`api-spec.md`). Issuance must therefore be a background task with polling, never
+a blocking request — and `--num-workers` should be raised above the default 2
+before the demo.
 
 ## Backup & recovery
 

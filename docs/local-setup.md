@@ -45,28 +45,27 @@ git checkout -b <yourname>-<area>
 curl --proto '=https' --tlsv1.2 -LsSf \
   https://github.com/midnightntwrk/compact/releases/latest/download/compact-installer.sh | sh
 
-source ~/.zshrc          # or restart the terminal
-compact update           # installs the compiler toolchain
+source ~/.zshrc                     # or restart the terminal
+compact update --no-set-default 0.31.1
 ```
 
-Verify:
+**Install 0.31.1 specifically, not the latest.** The compiler must emit the
+runtime version the Midnight SDK is built against (0.16.0). Compiling with 0.34.0
+produces a contract the SDK cannot execute, failing with an unrelated-looking
+error deep inside `decodeZswapLocalState`. See `midnight-stack.md` §"Do not
+upgrade these versions".
 
 ```bash
-compact --version                   # 0.5.2  (tool manager)
-compact compile --language-version  # 0.26.0 (language the compiler accepts)
+compact --version                            # 0.5.2  (tool manager)
+compact compile +0.31.1 --language-version   # 0.23.0
 ```
 
-Then confirm the contract builds:
+The compiled output is **committed to the repo**, so you do not need to build it
+to run anything. To rebuild after changing the contract:
 
 ```bash
-compact compile midnight/contracts/academic_credential.compact \
-                midnight/contracts/managed/academic_credential
-# → "Compiling 4 circuits:"
+cd midnight/chain-service && npm run compact   # → "Compiling 4 circuits:"
 ```
-
-That emits `contract/` (TypeScript API), `keys/` (prover+verifier per circuit),
-`zkir/`, and `compiler/contract-info.json`. Build output is gitignored — everyone
-compiles locally.
 
 ## 4. Install the Claude Code Midnight plugins
 
@@ -143,23 +142,27 @@ git clone https://github.com/midnightntwrk/example-hello-world.git
 cd example-hello-world && yarn install && yarn test:local
 ```
 
-### Chain-service (`<yourname>-chainservice`)
+### Chain-service — **already built**
 
 ```bash
-mkdir -p midnight/chain-service && cd midnight/chain-service
-npm init -y
-npm i @midnight-ntwrk/midnight-js-contracts \
-      @midnight-ntwrk/midnight-js-types \
-      @midnight-ntwrk/midnight-js-network-id \
-      @midnight-ntwrk/midnight-js-indexer-public-data-provider \
-      @midnight-ntwrk/midnight-js-http-client-proof-provider \
-      @midnight-ntwrk/midnight-js-level-private-state-provider \
-      @midnight-ntwrk/midnight-js-node-zk-config-provider
+cd midnight/chain-service
+nvm use 22 && npm install
+npm test          # 34 contract + API tests, no devnet needed
+npm start         # CHAIN_MODE=mock on :8090
 ```
 
-Wire all six providers (`midnight-stack.md` §6) — nothing works until every one
-is constructed. Then expose the HTTP API in `api-spec.md`.
-Plugin skill: `midnight-dapp-dev:midnight-sdk`.
+Against a live devnet:
+
+```bash
+npm run deploy    # deploys + authorizes the demo issuer, writes
+                  # midnight/deployments/undeployed.json
+npm run smoke     # full lifecycle: issue -> verify -> forge -> revoke
+CHAIN_MODE=live npm start
+```
+
+See `midnight/chain-service/README.md`. Note the versions are pinned
+deliberately — do not bump `compact-runtime`, `compact-js`, or `ledger-v8`
+without reading `midnight-stack.md` first.
 
 ### Backend (`<yourname>-backend`)
 
@@ -215,10 +218,10 @@ git push
 | Symptom | Fix |
 |---|---|
 | `compact: command not found` | `source ~/.zshrc`; installer writes to `~/.local/bin` |
-| Contract won't compile, pragma error | Must be `>= 0.26` — compiler 0.34.0 accepts language 0.26.0 |
+| Contract won't compile, pragma error | Must be `>= 0.23` — use compiler `+0.31.1`, not the latest |
 | Proof generation hangs or times out | Proof server is CPU-bound; raise Docker RAM, check `--num-workers` |
 | Proof server 404s on startup | Still fetching ZK params — watch the logs, wait it out |
-| `zkConfigProvider` errors | `keys/`/`zkir/` missing — rerun `compact compile` |
+| `zkConfigProvider` errors | `keys/`/`zkir/` missing — rerun `npm run compact` |
 | Chain-service can't reach services in Docker | Use service names (`http://proof-server:6300`), not `localhost` |
 | DynamoDB "Up" but every call hangs | Fixed: the container needs `user: root` to write its volume |
 | Devnet state gone after restart | Expected on `down -v` — redeploy the contract, update `CONTRACT_ADDRESS` |
