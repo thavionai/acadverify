@@ -3,6 +3,20 @@
  *
  * Writes midnight/deployments/<networkId>.json, which is the single source of
  * truth for CONTRACT_ADDRESS across the team.
+ *
+ * No separate "bootstrap wallet" step exists on purpose: the local devnet's
+ * genesis wallet (seed GENESIS_SEED, below) comes pre-funded with NIGHT and
+ * DUST by the dev chain-spec, verified directly against this devnet — so there
+ * is nothing to fund before deploying here. A Preview deploy is different: it
+ * needs a wallet funded with real tDUST from the Preview faucet first, which is
+ * the blockchain-engineer's step (see README.md), not something this script
+ * does — buildWallet() below works unchanged for either network, only
+ * MIDNIGHT_WALLET_SEED / MIDNIGHT_NETWORK_ID need to point at a funded Preview
+ * seed instead of the genesis one.
+ *
+ * To onboard an institution AFTER this initial deploy, use
+ * `npm run authorize -- <institutionId>` (authorize-issuer.ts) rather than
+ * re-running this script.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";

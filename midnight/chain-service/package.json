@@ -15,10 +15,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "bootstrap": "node --import tsx src/scripts/bootstrap-wallet.ts",
     "deploy": "node --import tsx src/scripts/deploy.ts",
-    "authorize": "node --import tsx src/scripts/authorize-issuer.ts",
-    "smoke": "node --import tsx src/scripts/smoke.ts"
+    "authorize": "node --import tsx src/scripts/authorize-issuer.ts --",
+    "smoke": "node --import tsx src/scripts/smoke.ts",
+    "smoke:http": "node --import tsx src/scripts/http-smoke.ts",
+    "check:salt-leak": "node --import tsx src/scripts/salt-leak-check.ts",
+    "vault:export": "node --import tsx src/scripts/vault-export.ts --",
+    "vault:import": "node --import tsx src/scripts/vault-import.ts --"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-js": "2.5.1",

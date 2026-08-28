@@ -51,6 +51,15 @@ midnight/chain-service/.private-state/
 .private-state/
 *.vault
 
+# Wallet-SDK local LevelDB state (sync cache / tx history) — found committed by
+# accident across three earlier commits: whatever @midnight-ntwrk package opens
+# this (not our own Vault, which lives under .private-state/ above) defaults to
+# a relative "midnight-level-db" path when run from midnight/chain-service/, so
+# every script invocation silently produced a git diff of binary DB files.
+# Runtime cache, not source — never belongs in version control regardless of
+# which package created it.
+midnight-level-db/
+
 # Terraform
 .terraform/
 *.tfstate
