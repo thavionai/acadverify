@@ -2,45 +2,130 @@
 
 Two layers with a strict boundary:
 
-- **Off-chain (DynamoDB + S3)**: all personal data, credential metadata, certificate documents, QR assets.
-- **On-chain (`AcademicCredential.sol`)**: Credential ID, SHA256 document hash, issuer wallet, metadata URI, timestamp, revocation status — nothing else.
+- **Private (off-chain, holder-controlled)**: all credential fields, the blinding
+  salt, certificate documents, QR assets.
+- **Public (on-chain, Midnight ledger)**: blinded commitments, the authorized
+  issuer set, revocation flags. **Nothing else.**
 
-Nothing containing personal information may cross that boundary. Deleting the off-chain record leaves the on-chain hash as an unlinkable value.
+Versions and endpoints: `midnight-stack.md`. Contract: `smart-contract.md`.
 
-## On-chain record
+---
 
-See `smart-contract.md` for the contract interface. Per credential:
+## Why the old SHA256 rule had to go
+
+The pre-Midnight design specified:
 
 ```
-credentialId       bytes32   keccak256(utf8(credentialIdString))
-documentHash       bytes32   SHA256(canonical credential document)
-issuerWallet       address
-metadataURI        string    S3/CloudFront URL (IPFS: future enhancement)
-timestamp          uint256
-revoked            bool
+documentHash = SHA256(canonical_json(document))     # ← DOES NOT WORK ON MIDNIGHT
 ```
 
-## DynamoDB tables
+…computed in Python, written on-chain, and re-computed by a verifier to compare.
+**Carrying that rule into the Midnight build would silently break the whole
+system**, for two independent reasons. Both are worth understanding before
+writing any code, because the failure is not obvious — it looks like a
+mysterious "commitment mismatch" on every single verification.
+
+**1. The hash is computed somewhere else now.** On Midnight the value the chain
+sees is produced *inside the ZK circuit* by `persistentCommit`. That function is
+SHA-256 based, but it hashes **Compact's binary encoding of a typed
+`CredentialData` struct** — not a UTF-8 JSON string. `hashlib.sha256(json_bytes)`
+and `persistentCommit<CredentialData>(fields, salt)` operate on entirely
+different byte sequences and will never agree. There is no canonicalization rule
+that makes them agree; the fix is to stop computing the value off-chain at all.
+
+**2. A bare hash of a credential is brute-forceable.** The field set is tiny and
+low-entropy: a name, a degree from a short list, a year, a GPA to two decimals.
+Anyone holding the on-chain hash can enumerate candidate credentials offline
+until one matches, recovering the "private" data. The old design papered over
+this by salting with a UUID-bearing `credentialId` — but that same
+`credentialId` is printed in the QR code, so the salt is public and the
+protection is nil. This is precisely the class of leak Midnight exists to
+prevent, and shipping it would undercut the project's core claim.
+
+**The rule that replaces it:**
+
+```
+commitment = persistentCommit<CredentialData>(credentialFields, credentialSalt)
+```
+
+- Computed **only in-circuit**. No backend, script, or test may reimplement it.
+- `credentialSalt` is a fresh random `Bytes<32>` per credential, **never
+  published** — it is the blinding factor that makes the commitment unopenable.
+- The backend never sees a commitment it computed itself; it reads the one the
+  chain holds via the indexer.
+
+> **Rule of thumb for reviews:** if any Python or TypeScript file outside the
+> generated contract API computes something it calls a "hash" or "commitment"
+> of credential fields, that is a bug. The circuit is the only place that
+> arithmetic is allowed to happen.
+
+---
+
+## On-chain state (the Midnight ledger)
+
+Exactly four fields, from `midnight/contracts/academic_credential.compact`:
+
+| Ledger field | Type | Contents |
+|---|---|---|
+| `issuers` | `Set<Bytes<32>>` | authorized issuer public keys |
+| `credentials` | `Map<Bytes<32>, Bytes<32>>` | `credentialId` → commitment |
+| `revoked` | `Set<Bytes<32>>` | revoked `credentialId`s |
+| `platformOwner` | `sealed Bytes<32>` | set once at deployment |
+
+No names, no degrees, no documents, no wallet addresses, no metadata URI.
+Compare this against the EVM design it replaces, which stored an issuer address,
+a metadata URI, and a timestamp per credential — three extra correlatable
+identifiers per student, all of them now gone.
+
+### Private state (witnesses)
+
+Supplied locally at proving time, never transmitted:
+
+| Witness | Type | Held by |
+|---|---|---|
+| `credentialFields()` | `CredentialData` | student (and platform, MVP) |
+| `credentialSalt()` | `Bytes<32>` | student (and platform, MVP) |
+| `localSecretKey()` | `Bytes<32>` | issuer / platform owner |
+
+`CredentialData` = `studentId`, `issuerPk`, `institutionId`, `degreeCode`,
+`graduationYear`, `gpaTimes100`.
+
+These live in the SDK's `privateStateProvider` (LevelDB in the chain-service).
+**That store is the real privacy boundary of this product.** Losing it means
+credentials can no longer be proven; leaking it means every commitment it covers
+can be opened. Back it up like key material, never like a cache.
+
+---
+
+## Off-chain records
+
+Storage stays DynamoDB + S3 (unchanged, and deliberately so — the hackathon
+value is in the privacy layer, not in re-platforming storage). What changed is
+**what is allowed in these records**.
 
 ### `credentials`
 
 | Attribute | Type | Notes |
 |---|---|---|
-| `credentialId` (PK) | S | e.g. `ACAD-2026-000123` — embeds a UUID component so identical degrees still get unique IDs |
-| `institutionId` | S | GSI partition key for "list my credentials" |
-| `student` | S | holder name |
-| `degree` | S | e.g. `Master of Artificial Intelligence` |
-| `graduation` | S | e.g. `May 2026` |
-| `attributes` | M | free-form extras (GPA, honors) |
-| `documentHash` | S | SHA256 hex — must match on-chain |
-| `documentS3Key` | S | canonical credential JSON in S3 |
-| `certificateS3Key` | S | QR-enabled certificate (PDF/PNG) |
-| `txHash` | S | issuance transaction |
-| `chainId` | N | |
-| `status` | S | `PENDING_CHAIN` \| `ISSUED` \| `REVOCATION_PENDING` \| `REVOKED` |
+| `credentialId` (PK) | S | e.g. `ACAD-2026-000123`; also the on-chain map key |
+| `institutionId` | S | GSI partition key |
+| `student` | S | holder name — **off-chain only** |
+| `degree` / `graduation` | S | human-readable, for the dashboard |
+| `attributes` | M | GPA, honors |
+| `certificateS3Key` | S | QR-enabled certificate |
+| `status` | S | `PENDING_PROOF` \| `ISSUED` \| `REVOCATION_PENDING` \| `REVOKED` |
+| `txId` | S | Midnight transaction identifier |
+| `contractAddress` | S | deployed contract this credential lives in |
+| `networkId` | S | `undeployed` \| `preview` \| `preprod` |
 | `issuedAt` / `updatedAt` | S | ISO 8601 |
 
-GSIs: `institutionId-issuedAt-index` (dashboard listing), `status-index` (pending-transaction sweeper).
+Removed from the EVM design: `documentHash` (the commitment is on-chain, and we
+must not cache an openable copy), `chainId` (replaced by `networkId`),
+`issuerWallet` (no addresses), `documentS3Key` (see below).
+
+> **`status` renamed.** `PENDING_CHAIN` → `PENDING_PROOF`, because the wait is
+> dominated by proof generation, not block time. Naming it accurately stops
+> people debugging the wrong component when it hangs.
 
 ### `institutions`
 
@@ -48,67 +133,75 @@ GSIs: `institutionId-issuedAt-index` (dashboard listing), `status-index` (pendin
 |---|---|---|
 | `institutionId` (PK) | S | |
 | `name` | S | |
-| `issuerWallet` | S | address authorized on-chain |
-| `apiKeyHash` | S | hashed issuer API key (login is a future enhancement) |
+| `issuerPk` | S | `Bytes<32>` hex — the key authorized in the `issuers` set |
+| `apiKeyHash` | S | hashed issuer API key |
 | `status` | S | `ACTIVE` \| `DEACTIVATED` |
+
+`issuerWallet` (an `0x…` address) → `issuerPk` (a Midnight public key derived
+in-circuit via `publicKey(sk)`). Not a rename — a different key type entirely.
 
 ### `revocations`
 
-| Attribute | Type | Notes |
-|---|---|---|
-| `credentialId` (PK) | S | |
-| `reason` | S | internal only — the public portal shows just "REVOKED" |
-| `txHash` | S | |
-| `revokedAt` | S | |
+| Attribute | Type |
+|---|---|
+| `credentialId` (PK) | S |
+| `reason` | S (internal only — the portal shows just "REVOKED") |
+| `txId` | S |
+| `revokedAt` | S |
 
-## S3 layout
+### S3 layout
 
 ```
 s3://acadverify-<env>/
-├── documents/<credentialId>.json        # canonical credential document (hashed content)
-├── certificates/<credentialId>.pdf      # QR-enabled certificate for download
-└── qr/<credentialId>.png                # QR image (encodes the public verify URL)
+├── certificates/<credentialId>.pdf   # QR-enabled certificate for download
+└── qr/<credentialId>.png             # QR image (encodes the public verify URL)
 ```
 
-Served to browsers via CloudFront; buckets are private with CloudFront origin access.
+`documents/<credentialId>.json` is **gone**. It existed to be the canonical
+pre-image of the on-chain hash; that pre-image is now witness data, and writing
+it to shared object storage would recreate the exact leak the commitment scheme
+removes.
 
-## Hashing rule (the contract between layers)
+---
 
-```
-documentHash = SHA256(canonical_json(document))
-```
+## The salt is the crown jewel
 
-- `canonical_json` = JSON with sorted keys, no insignificant whitespace, UTF-8 (RFC 8785–style) — so key order can never change the hash.
-- Implemented once in the backend (`backend/`) and mirrored in verification tooling. This rule is shared between the backend and any independent verifier and must never fork.
-- The canonical document contains the `credentialId` (with its UUID component), which acts as a salt against dictionary attacks on the on-chain hash.
+| Property | Consequence |
+|---|---|
+| Salt lost | Credential can never be proven again. Unrecoverable — reissue is the only fix. |
+| Salt leaked | The commitment becomes openable; the credential's fields are exposed. |
+| Salt reused across credentials | Two commitments become linkable. Always generate fresh. |
 
-### Canonical credential document
+MVP: the platform custodies salts alongside the private state store. Student-held
+salts (Lace wallet) are the stretch — and the honest framing in the demo is that
+platform custody is a *deployment* choice, not a protocol limitation. The
+contract is already agnostic about who supplies the witness.
 
-```json
-{
-  "credentialId": "ACAD-2026-000123",
-  "institution": { "id": "…", "name": "North Valley University" },
-  "student": "Alex Johnson",
-  "degree": "Master of Artificial Intelligence",
-  "graduation": "May 2026",
-  "attributes": { "gpa": "3.9" },
-  "issuedAt": "2026-05-20T00:00:00Z"
-}
-```
-
-W3C Verifiable Credentials alignment is a listed future enhancement; the MVP document stays minimal.
+---
 
 ## QR payload
 
-The QR code encodes the public verification URL:
+Unchanged:
 
 ```
 https://<domain>/verify/ACAD-2026-000123
 ```
 
-Scanning opens the public portal, which calls `GET /api/v1/verify/{credentialId}` (see `api-spec.md`).
+The QR encodes only the credential ID and never the salt or any field — a QR
+code is photographed, screenshared, and pasted into chats, so anything inside it
+should be considered public.
+
+---
 
 ## Retention & erasure
 
-- Student erasure request → delete the DynamoDB item's personal fields and the S3 documents; the on-chain hash remains but is no longer linkable to a person.
-- Logs must never contain document contents or student PII (enforced by serializer allowlists, not convention).
+Materially stronger than the EVM design, and worth saying out loud in the pitch:
+
+- **Erasure**: delete the off-chain record *and the salt*. The on-chain
+  commitment becomes a permanently unopenable 32 bytes — not merely
+  "unlinkable", but information-theoretically closed to anyone without the salt.
+- The old design could only promise the hash was "no longer linkable to a
+  person", while remaining brute-forceable in practice. This one does not have
+  that asterisk.
+- Logs must never contain credential fields or salts — enforced by serializer
+  allowlists and a test, not by convention.

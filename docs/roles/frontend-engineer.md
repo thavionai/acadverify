@@ -2,42 +2,67 @@
 
 ## Mission
 
-Own the user-facing surfaces of AcadVerify: the university dashboard and the public verification portal where anyone can check a credential in seconds.
+Own the user-facing surfaces: the university dashboard and the public
+verification portal — and make selective disclosure legible to a non-technical
+verifier.
 
 ## Owns
 
-- React
-- Next.js (TypeScript, TailwindCSS)
-- Dashboard
-- Verification UI
-- Wallet Integration (ethers.js / viem)
+- Next.js (TypeScript, TailwindCSS), React
+- Dashboard + public verification portal
+- QR scanning
+- Wallet integration via `@midnight-ntwrk/dapp-connector-api` *(stretch)*
 
 ## Responsibilities
 
-- Build and maintain the two primary surfaces in `frontend/`:
-  - **University dashboard** — credential issuance form, issued-credential list with search, revoke action, QR-enabled certificate download.
-  - **Public verification portal** — scan a QR or enter a credential ID and get a clear result with issuer details, blockchain status, and transaction link.
-- Make verification results unambiguous: **VALID**, **REVOKED**, **TAMPERED**, and **service error** must be impossible to confuse (see the sample result in `../api-spec.md`).
-- Implement the QR scanner flow and the blockchain-status display (credential exists / hash verified / issuer verified / active, plus explorer link).
-- Optional direct-chain reads via ethers.js/viem for a "verify without trusting the server" mode.
-- Keep the public portal fully unauthenticated; dashboard auth follows the backend's API-key model for MVP (login is a future enhancement).
-- Ensure accessibility (WCAG AA) and responsive layouts — verifiers are often on low-end mobile devices; the verify page must be fast there.
-- Maintain component tests and e2e tests for the critical flow: issue → download certificate → scan → verify → revoke → re-verify.
+- Build the two surfaces in `frontend/`:
+  - **Dashboard** — issue form, credential list with search, revoke, certificate
+    download.
+  - **Public verify portal** — scan a QR or enter an ID, get a clear result.
+- Make the four states impossible to confuse: **VALID**, **REVOKED**,
+  **INVALID_PROOF**, **service error**. A service error must never look like a
+  rejected credential — that failure mode accuses a real graduate of fraud
+  because our infrastructure hiccuped.
+- **Show what was withheld.** Render the `disclosed` fields *and* the `withheld`
+  list side by side. Selective disclosure is invisible if the UI only shows what
+  was revealed — and being able to point at the withheld list is the single most
+  persuasive thing on screen during judging.
+- Build the consent flow: the student chooses whether GPA is disclosed, and the
+  UI shows the same credential verifying two ways.
+- **No ethers.js/viem, no explorer links** — there is no EVM and no PolygonScan.
+  Where the old design linked to a block explorer, show `contractAddress`,
+  `txId`, `networkId`, and a copyable indexer GraphQL query anyone can run
+  themselves.
+- Communicate proof latency honestly: verification generates a ZK proof and is
+  not instant. Design a real loading state; do not let it read as a hang.
+- *(Stretch)* Lace wallet connection. Enumerate `Object.values(window.midnight)`
+  and match on `name`/`rdns` — relying on `window.midnight.mnLace` alone misses
+  other wallets.
+- Accessibility (WCAG AA) and mobile performance — verifiers are often on
+  low-end phones.
 
-## Works on branch
+## Branch
 
-`feature/frontend`
+`<yourname>-frontend`
 
-## Interfaces with other roles
+## Plugin skills
 
-- **Backend Engineer** ([backend-engineer.md](backend-engineer.md)): consumes the REST API; agrees on error semantics so the UI never renders a service error as "invalid credential."
-- **Blockchain Engineer** ([blockchain-engineer.md](blockchain-engineer.md)): surfaces on-chain proof details (transaction hash, explorer links) in a way non-technical verifiers can trust.
-- **Product/QA** ([product-qa.md](product-qa.md)): iterates on verification UX clarity; provides copy and edge-case flows.
-- **SRE/DevOps** ([sre-devops.md](sre-devops.md)): CloudFront delivery, Docker image, error monitoring.
+`midnight-dapp-dev:dapp-connector`, `midnight-dapp-dev:init`,
+`midnight-cq:dapp-connector-testing`
+
+## Interfaces
+
+- **Backend** ([backend-engineer.md](backend-engineer.md)): REST API and error
+  semantics.
+- **Chain-service** ([chain-service-engineer.md](chain-service-engineer.md)):
+  *(stretch)* client-side proving via Lace.
+- **Product/QA** ([product-qa.md](product-qa.md)): disclosure UX and copy.
 
 ## Definition of done
 
-- Critical flows are covered by e2e tests and pass in CI.
-- New UI states handle loading, empty, error, and unauthorized — not just the happy path.
+- Critical flows covered by e2e tests: issue → certificate → scan → verify →
+  consent-to-disclose → revoke → re-verify.
+- Every state handles loading, empty, error, and unauthorized.
+- The verify page renders disclosed **and** withheld fields.
 - Accessibility checks pass on changed screens.
-- No secrets or privileged API calls in client code; the public portal works without login.
+- No secrets or witness data in client code.

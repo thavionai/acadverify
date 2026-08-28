@@ -1,140 +1,205 @@
-# AcadVerify — Midnight Integration
+# AcadVerify — Midnight Integration Map
 
-Target event: **MLH Midnight Virtual Hackathon**, Aug 28–30, 2026.
-Submissions via Devpost — **initial due Sunday 10:00 AM ET, final due Sunday 11:45 AM ET.**
+**What we take from Midnight, where each piece is used, and why it is the right
+tool for that job.** Reference tables live in `midnight-stack.md`; system design
+in `architecture.md`; circuits in `smart-contract.md`. This doc is the
+justification layer that ties them together.
 
-## Track choice
+Track: **Integrate Midnight** (stretch: Cross-Chain).
 
-| Track | Fit |
+---
+
+## 1. Why this app needs Midnight specifically
+
+Credential verification has a structural privacy problem that a normal
+blockchain makes *worse*:
+
+- To prove one fact ("I hold a Master's from NVU"), the standard flow discloses
+  a whole document — grades, dates, course history.
+- Putting credentials on a public ledger adds a permanent, correlatable record
+  of every credential a person holds.
+- Hashing does not save you. A credential is a handful of low-entropy fields:
+  a name, a degree from a short list, a year, a GPA to two decimals. Anyone with
+  the hash can enumerate candidates offline until one matches.
+
+Midnight is the rare platform where the *verification itself* is the private
+operation: the proof asserts the credential is valid without transmitting the
+credential. That is not a feature we bolt on — it replaces the mechanism.
+
+**The honest test of whether this belongs on Midnight:** could we do it with a
+normal database and a signature? We could prove authenticity that way — but not
+*selective disclosure against a public, tamper-proof issuer set that the verifier
+does not have to trust us to report honestly*. That combination is what needs a
+ZK chain.
+
+---
+
+## 2. What we use from Midnight
+
+### Compact (contract language) — the core
+
+`midnight/contracts/academic_credential.compact`. Not just "a contract in their
+language" — three Compact features do real work for us:
+
+| Feature | How AcadVerify uses it |
 |---|---|
-| **Integrate Midnight** ✅ primary | "Add Midnight privacy features to existing applications" — AcadVerify is the existing app; Midnight becomes its privacy layer |
-| **Cross-Chain** (stretch) | "Midnight holds the private logic and generates the proofs" — keep the Polygon/EVM public anchor from the original design, move private verification to Midnight |
+| **Witnesses** | Credential fields and the blinding salt are witness data. They enter the circuit as PLONK private inputs and never reach the chain. |
+| **`persistentCommit`** | Produces the blinded, SHA-256-based commitment stored on-chain. Clears witness taint, so the compiler certifies the value hides its input. |
+| **Disclosure analysis** | The compiler's Witness Protection Program refuses to let witness-derived data cross a public boundary without an explicit `disclose()`. **Privacy leaks become compile errors.** |
 
-## Why Midnight upgrades AcadVerify
+That last row is the one to emphasise to judges. Our privacy guarantee is not
+"we were careful" — it is enforced by the type system at build time. A future
+teammate cannot accidentally leak `studentId`; the code will not compile.
 
-The original design proves a credential is *authentic* but the verifier still sees the credential data. Midnight's zero-knowledge model lets us prove *validity without disclosure*:
+Reinforced by design: `proveCredential` returns a `DisclosedClaim` struct that
+has no `studentId` field at all, so leaking the holder's identity is
+unrepresentable rather than merely prohibited.
 
-- An employer verifies "this person holds a valid, non-revoked Master's degree from an authorized university" **without seeing GPA, transcript details, or anything the student didn't consent to share**.
-- Selective disclosure: the student chooses which fields the proof reveals (degree yes, GPA no).
-- Nothing sensitive ever goes on-chain — not even hashes of PII. The ledger holds commitments and revocation flags; the proof does the rest.
+### Proof server — proving, and our main latency budget
 
-This is the demo money-shot: two verifications of the same credential, one revealing only "valid Master's degree, issuer verified", one additionally disclosing GPA — both cryptographically checked against the same on-chain record.
+Generates every ZK proof for issuance, revocation, and verification. Runs
+locally in Docker (:6300) and self-hosted in every deployed environment.
 
-## How Midnight works (what the team needs to know)
+It is CPU-bound with 2 workers by default, which makes it — not block time —
+the latency-determining component of the product. This reshapes the SLOs
+(`deployment.md`) and is the top demo-day risk (`hackathon-plan.md`).
 
-- Contracts are written in **Compact**, a TypeScript-based language that compiles to zero-knowledge circuits. Compilation produces the ZK proving/verifying keys **and a TypeScript API** for the contract.
-- A contract splits into: **public ledger state** (on-chain, visible), **circuits** (the validated logic), and **witnesses** (private data supplied locally, never published).
-- A transaction carries a public transcript + a ZK proof that the rules were followed. The chain stores a verifying key per contract function — not the data, not the logic.
-- **MidnightJS** (TypeScript) is the dApp SDK; the **Lace wallet (Midnight edition)** signs transactions; a local **proof server** (Docker) generates proofs; testnet funds are **tDUST** from the Midnight faucet.
+### Indexer — chain reads and independent verification
 
-## Architecture changes
+GraphQL on :8088 (`/api/v4/graphql`), plus WebSocket subscriptions. Used for:
+
+- Reading contract state (does the credential exist? is it revoked?)
+- Confirming a submitted transaction
+- **Independent verification by third parties.** Midnight has no PolygonScan, so
+  "show me the transaction" becomes a `contractAction(address)` query anyone can
+  run against `indexer.preview.midnight.network`. The verify page surfaces a
+  copyable query instead of a dead explorer link.
+
+### Midnight node — the chain
+
+Substrate RPC on :9944. The chain-service submits transactions through it; the
+indexer follows it over WebSocket.
+
+### Midnight.js SDK (v4.1.1) — the chain-service
+
+`@midnight-ntwrk/midnight-js-*` in a Node 22 sidecar, with all six providers
+wired (`midnight-stack.md` §6).
+
+**Why a sidecar at all:** Midnight.js is TypeScript-only. There are no Python
+bindings, so the original Web3.py integration cannot be ported — it has no
+Midnight equivalent to port *to*. FastAPI keeps REST, metadata, QR, and storage;
+anything requiring a proof goes over HTTP to the chain-service. This is a
+platform constraint, not a design preference, and it is the single biggest
+structural change to the backend.
+
+The SDK's `privateStateProvider` (LevelDB) holds the witness data. It is the
+actual privacy boundary of the deployed system — see `data-model.md`.
+
+### DApp Connector + Lace wallet — the stretch
+
+`@midnight-ntwrk/dapp-connector-api` v4.0.1. MVP has the platform generate
+proofs. The stretch moves proving into the student's **Lace wallet (Midnight
+edition)**, so the platform never holds the witness data at all.
+
+Worth stating precisely in the pitch: **the contract is already agnostic about
+who supplies the witness.** Platform custody is a deployment choice we made for
+time, not a limitation of the design. Enumerate `Object.values(window.midnight)`
+to detect wallets rather than assuming `mnLace`.
+
+### Networks
+
+Develop on `undeployed` (local devnet), demo on **`preview`**, funded with
+tDUST from the faucet. "Testnet" is not a Midnight network name — using it sends
+people to the wrong endpoint.
+
+---
+
+## 3. Claude Code plugin suite — how we use it
+
+16 plugins / 88 skills from <https://midnightntwrk.expert/>, installed at user
+scope (`curl -fsSL https://midnightntwrk.expert/install.sh | bash`).
+
+These are **authoritative reference material**, and using them is how this
+project avoided shipping several plausible-looking mistakes. Concretely, the
+plugin reference is what caught:
+
+| What the generic design said | What the plugins established | Consequence if missed |
+|---|---|---|
+| `pragma language_version >= 0.16` | Current is `>= 0.26`; compiler 0.34.0 | Stale syntax, confusing errors |
+| Deploy to "testnet" | Networks are `undeployed` / `preview` / `preprod` | Wrong endpoints, lost time |
+| Link to a block explorer | No explorer exists; use indexer GraphQL | A demo feature that cannot be built |
+| `Set` for private membership | `Set.member` reveals the element; `MerkleTree` hides it | Overclaiming privacy to judges |
+| SHA256 of canonical JSON as the chain contract | Commitment computed in-circuit over Compact's encoding | **Every verification fails, cause non-obvious** |
+
+Day-to-day commands:
 
 ```
-Before (EVM):                          After (Midnight):
-
-FastAPI ──Web3.py──▶ Polygon           FastAPI ──HTTP──▶ chain-service (Node/TS, MidnightJS)
-                                                             │        │
-                                                        proof server  └──▶ Midnight testnet
-                                                        (Docker)           (Compact contract)
+/midnight-tooling:devnet start|status|health|logs   # the 3-service local network
+/midnight-expert:doctor                             # environment diagnostics
+/midnight-verify:verify-compact                     # verify contract correctness
+/midnight-status-codes:status-codes-lookup          # decode an error code
+/midnight-fact-check:*                              # check claims before the pitch
 ```
 
-1. **New `midnight/` folder** — the Compact contract, compiled artifacts, and the TypeScript chain-service.
-2. **Chain-service sidecar (Node 22+, TypeScript)** — MidnightJS has no Python bindings, so Web3.py cannot talk to Midnight. FastAPI keeps owning REST/metadata/QR (DynamoDB, S3 unchanged) and calls the chain-service over HTTP for issue / revoke / verify-proof operations. The chain-service talks to the proof server and the Midnight network.
-3. **Proof server** — runs as a Docker container locally (added to `docker-compose.yml`); generates the ZK proofs for transactions.
-4. **Frontend** — the public verify page consumes proof results from the backend as before. Stretch: Lace wallet integration so a *student* can generate a disclosure proof client-side without the platform in the loop.
-5. **The Solidity design (`smart-contract.md`) is retained** as the Cross-Chain stretch: Polygon keeps the public existence anchor, Midnight holds private logic and proofs.
+Per-role skills are listed in each `roles/*.md`.
 
-## Compact contract sketch
+> **MCP note.** The plugin suite ships skills and agents for Claude Code, not an
+> MCP server — nothing needs adding to `.mcp.json`. Some skills (e.g.
+> `midnight-tooling:release-notes`) can call octocode MCP tools to fetch live
+> release notes from `midnightntwrk/midnight-docs` when that server is
+> configured; everything else works from the bundled reference material offline.
 
-Design sketch for `midnight/contracts/academic_credential.compact` — validate against the current compiler and the [hello-world example](https://github.com/midnightntwrk/example-hello-world) before relying on syntax:
+---
 
-```
-pragma language_version >= 0.16;
-import CompactStandardLibrary;
+## 4. What we deliberately dropped
 
-// Public ledger state — commitments only, never credential data
-export ledger issuers: Set<Bytes<32>>;                      // authorized issuer ids
-export ledger credentials: Map<Bytes<32>, Bytes<32>>;       // credentialId -> commitment
-export ledger revoked: Set<Bytes<32>>;                      // revoked credentialIds
+| Dropped | Why |
+|---|---|
+| Solidity / Hardhat / OpenZeppelin | Midnight is not EVM. Retained only in the Cross-Chain appendix. |
+| Web3.py | No Python bindings for Midnight. Replaced by the chain-service. |
+| ethers.js / viem | No EVM in the primary path. Replaced by the DApp Connector. |
+| Polygon Amoy, `RPC_URL`, `CHAIN_ID` | Superseded by `MIDNIGHT_NETWORK_ID` + node/indexer/proof-server URLs. |
+| `documents/<id>.json` in S3 | It was the hash pre-image; that is now witness data and must not be in shared storage. |
+| On-chain issuer address, metadata URI, timestamp | Three correlatable identifiers per student, none of them necessary. |
+| The `TAMPERED` state | Forgery is now unprovable rather than detectable. Folded into `INVALID_PROOF`. |
 
-// Issue: issuer commits to the credential without revealing it.
-// commitment = hash(credentialFields, salt) computed in-circuit from witness data.
-export circuit issue(credentialId: Bytes<32>): [] { ... }
+---
 
-// Revoke: only the issuing university's key can revoke.
-export circuit revoke(credentialId: Bytes<32>): [] { ... }
+## 5. Verification status of this integration
 
-// Prove validity: witness = full credential fields + salt (held by student/platform).
-// Circuit proves: commitment matches, issuer is authorized, not revoked,
-// and reveals ONLY the fields the holder consented to disclose.
-export circuit proveCredential(credentialId: Bytes<32>,
-                               disclosed: DisclosedFields): [] { ... }
+Verified locally on 2026-08-28:
 
-// Witnesses (private, local-only)
-witness credentialFields(): CredentialData;
-witness salt(): Bytes<32>;
-```
+| Claim | Evidence |
+|---|---|
+| Contract compiles | ✅ 4 circuits, prover+verifier keys, TS API emitted |
+| Selective disclosure is real | ✅ `contract-info.json` records `proveCredential`'s result as exactly 4 fields; `studentId` absent |
+| Toolchain versions | ✅ `compact` 0.5.2, compiler 0.34.0, language 0.26.0, runtime 0.19.0 |
+| Devnet runs | ✅ node + indexer + proof server all responding |
+| Indexer serves real data | ✅ `{ block { height hash } }` returned a block from the local chain |
+| Image tags exist | ✅ node 0.22.5, indexer-standalone 4.2.1, proof-server 8.1.0 |
 
-Compiling (`compact compile`) generates `contract/` (TS API), `keys/` (proving/verifying keys), and `zkir/` — the chain-service imports the generated TS API directly.
+Not yet verified (Phase 2): deployment to devnet or `preview`, end-to-end
+proving through the chain-service, and real proof latency. **Do not claim these
+in the submission until they run.**
 
-## Local development setup (delta to `local-setup.md`)
+---
 
-Prerequisites on top of the existing list:
-
-- **Node.js v22+** (Midnight tooling requires it — note our repo standard was 20+, bump to 22)
-- **Compact compiler** (Midnight toolchain — see [docs.midnight.network](https://docs.midnight.network/))
-- Docker (already required) for the **proof server / local devnet**
-
-Fastest start — clone the official example and adapt:
-
-```bash
-git clone https://github.com/midnightntwrk/example-hello-world.git
-cd example-hello-world
-yarn install
-yarn env:up        # starts local devnet + proof server (Docker must be running)
-yarn test:local    # compiles, deploys to local devnet, runs contract ops
-```
-
-Then port the pattern into `midnight/` in our repo:
-
-```
-midnight/
-├── contracts/academic_credential.compact
-├── contracts/managed/            # compact compile output (contract/, keys/, zkir/)
-├── chain-service/                # Node/TS HTTP service wrapping MidnightJS
-└── package.json
-```
-
-The local devnet ships pre-funded wallets; for the public testnet, get **tDUST** from the Midnight faucet and use the **Lace wallet (Midnight edition)**.
-
-## 48-hour plan (deadline-driven)
+## 6. 48-hour plan
 
 | When | What |
 |---|---|
-| **Fri (today)** | Everyone: register on Devpost. Blockchain: run hello-world end-to-end, start `academic_credential.compact`. Backend: scaffold chain-service HTTP skeleton + agree its API with FastAPI. DevOps: proof server in compose, Node 22 bump. |
-| **Sat morning** | Contract compiles + deploys to local devnet; issue/revoke circuits pass tests. |
-| **Sat afternoon** | Chain-service wired: FastAPI issue → commitment on devnet; verify returns proof-checked result. Frontend renders the privacy-preserving verify states. |
-| **Sat evening** | Deploy contract to Midnight **testnet** (tDUST funded). End-to-end on testnet. Selective-disclosure demo path working. **Feature freeze.** |
-| **Sun 8:00 AM** | Rehearse demo twice; record backup video. |
-| **Sun 10:00 AM ET** | **Initial Devpost submission** (don't wait for polish). |
-| **Sun 11:45 AM ET** | **Final submission.** |
-
-Cut order if behind: selective disclosure → keep single "valid/revoked, nothing revealed" proof. Lace wallet flow → platform-generated proofs only. Testnet → demo on local devnet with honesty about it.
-
-## Verification states (updated semantics)
-
-| State | Meaning on Midnight |
-|---|---|
-| **VALID** | ZK proof verified: commitment matches, issuer authorized, not revoked |
-| **REVOKED** | credentialId present in the on-chain revoked set |
-| **TAMPERED / INVALID PROOF** | proof failed — witness data doesn't match the on-chain commitment |
-| **Service error** | proof server / node unreachable — never rendered as an invalid credential |
+| **Fri** | Everyone registers on Devpost. Contract tests started; chain-service skeleton + provider wiring; FastAPI ↔ chain-service API agreed; compose pinned. |
+| **Sat AM** | Contract deployed to local devnet; issue/revoke/prove exercised end-to-end. |
+| **Sat PM** | FastAPI issue → commitment on devnet; verify returns a proof-checked result; frontend renders disclosed/withheld. |
+| **Sat EVE** | Deploy to **`preview`** (tDUST). End-to-end on preview. Selective-disclosure path working. **Feature freeze.** |
+| **Sun 08:00** | Rehearse twice on the demo machine. Record a backup video. |
+| **Sun 10:00 ET** | **Initial Devpost submission** — do not wait for polish. |
+| **Sun 11:45 ET** | **Final submission.** |
 
 ## Resources
 
-- Docs: https://docs.midnight.network/
-- Hello-world tutorial: https://docs.midnight.network/getting-started/hello-world
-- Compact language: https://docs.midnight.network/compact
-- How contracts work: https://docs.midnight.network/concepts/how-midnight-works/smart-contracts
-- Example repo: https://github.com/midnightntwrk/example-hello-world
-- Event: https://events.mlh.com/events/14510-midnight-hackathon-august
+- <https://docs.midnight.network/>
+- <https://midnightntwrk.expert/>
+- <https://github.com/midnightntwrk/example-hello-world>
+- Midnight Academy: <https://mlh.link/midnight-academy>
+- Midnight for Developers (PDF): <https://mpc.midnight.network/hubfs/Midnight%20for%20Developers.pdf>
