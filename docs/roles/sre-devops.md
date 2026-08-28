@@ -2,45 +2,69 @@
 
 ## Mission
 
-Keep AcadVerify reliable, secure, and deployable: AWS infrastructure, CI/CD, observability, key custody, and the operational health of both the off-chain services and the chain-facing components.
+Keep AcadVerify reliable, secure, and deployable — including three Midnight
+services that did not exist in the original architecture, and one data store
+whose loss is unrecoverable.
 
 ## Owns
 
+- Docker Compose (5 local services), Dockerfiles
+- **Midnight infrastructure**: proof server, indexer, node deployment + sizing
+- **Private state store**: encrypted volume, backups, restore tests
 - AWS (ECS Fargate, ECR, S3, DynamoDB, CloudFront, CloudWatch, Secrets Manager)
-- Docker
-- Terraform (`infrastructure/terraform/`)
-- CI/CD (GitHub Actions, `.github/workflows/`)
-- Monitoring
-- Logging
-- Secrets
-- Security (Trivy, IAM)
+- Terraform, GitHub Actions, Trivy
 
 ## Responsibilities
 
-- Own CI/CD pipelines: lint/test → Docker build → Trivy scan → push to ECR → Terraform apply → ECS deploy, per component and branch (see `../deployment.md`).
-- Manage environments (dev via Docker Compose, staging, production) with parity — staging verifies against the public testnet before anything is promoted.
-- Provision and maintain all infrastructure as Terraform: ECS services, DynamoDB tables, S3 buckets, CloudFront, IAM, alarms.
-- Own key custody with the blockchain engineer: deployer and issuer wallet keys live in AWS Secrets Manager with scoped IAM access — never in the repo or plain CI variables; rotation is audited.
-- Build observability in CloudWatch: metrics, structured PII-free logs, and alarms for API errors, pending-transaction age, RPC provider failures, and ECS task health — the public verification endpoint is the highest-availability surface.
-- Manage DynamoDB point-in-time recovery and S3 versioning; test restores; maintain the "re-index from chain events" recovery path.
-- Handle incident response: runbooks for every alarm, blameless postmortems for Sev1/Sev2.
-- Enforce security baselines: Trivy blocking on high/critical CVEs, least-privilege IAM, TLS everywhere, dependency scanning.
-- Prepare the future path to Kubernetes + Helm for production without blocking the hackathon ECS setup.
+- Keep the local stack working for five other people: node, indexer, proof
+  server, DynamoDB Local, MinIO. **Pin the Midnight image versions** — the three
+  services must be version-compatible with each other and the target network.
+- **Size and operate the proof server.** It is CPU-bound, defaults to 2 workers,
+  and is the latency-determining component of the entire product. Tune
+  `--num-workers` to vCPU and set a real `--job-capacity` in production so a
+  spike sheds load instead of exhausting memory. Never expose it publicly.
+- **Own the private state volume.** It holds credential salts. Lost → those
+  credentials can never be proven again; leaked → their commitments become
+  openable. Encrypted volume, encrypted tested backups, scoped access, never an
+  ephemeral filesystem. A stateless multi-replica chain-service without a shared
+  encrypted store will silently lose credentials as tasks recycle.
+- Build CI: **`compact compile` must run in the pipeline**, the chain-service
+  image must contain `keys/` + `zkir/`, and a diff in
+  `compiler/contract-info.json` must be surfaced as a reviewed privacy change.
+- Manage secrets in Secrets Manager: Midnight **seeds** (not EVM private keys),
+  issuer API keys, contract addresses per network.
+- Build observability for what actually breaks: proof duration and queue depth,
+  proof failure rate, `PENDING_PROOF` age, indexer latency, per-service health.
+  **Alarm on the three Midnight services separately** — "the chain is down" is
+  not actionable when the node is fine and the proof server is saturated.
+- Treat a credential field or salt appearing in logs as a **P0 incident**, not a
+  hygiene issue.
+- Maintain runbooks for every alarm.
 
-## Works on branch
+## Branch
 
-`feature/devops`
+`<yourname>-devops`
 
-## Interfaces with other roles
+## Plugin skills
 
-- **Blockchain Engineer** ([blockchain-engineer.md](blockchain-engineer.md)): contract-deploy workflow, RPC provider config, wallet key custody.
-- **Backend Engineer** ([backend-engineer.md](backend-engineer.md)): service health checks, task definitions, Secrets Manager injection.
-- **Frontend Engineer** ([frontend-engineer.md](frontend-engineer.md)): CloudFront hosting, cache strategy, client error reporting.
-- **Product/QA** ([product-qa.md](product-qa.md)): environment access for testing, release gates, rollback criteria.
+`midnight-tooling:devnet`, `midnight-tooling:devnet-health`,
+`proof-server:proof-server-configuration`, `proof-server:proof-server-operations`,
+`midnight-indexer:indexer-operations`, `midnight-node:node-operations`,
+`midnight-cq:quality-init`
+
+## Interfaces
+
+- **Chain-service** ([chain-service-engineer.md](chain-service-engineer.md)):
+  private-state volume, proof-server sizing, image contents.
+- **Blockchain** ([blockchain-engineer.md](blockchain-engineer.md)): contract
+  deploy workflow, seed custody.
+- **Backend / Frontend**: health checks, images, CDN.
+- **Product/QA** ([product-qa.md](product-qa.md)): environments, release gates.
 
 ## Definition of done
 
-- Infrastructure changes are in Terraform and peer-reviewed — no console-only changes.
-- New services ship with health checks, a dashboard, and at least one meaningful alarm before production traffic.
+- Infrastructure changes are in Terraform and peer-reviewed.
+- Midnight image versions are pinned and verified to exist.
+- New services ship with health checks, a dashboard, and a meaningful alarm.
+- Private state backup/restore has been *tested*, not just configured.
 - Runbooks exist for every alarm that can page someone.
-- Production deployments have a manual approval gate and a tested rollback path.

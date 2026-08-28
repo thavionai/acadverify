@@ -2,50 +2,77 @@
 
 ## Mission
 
-Define what AcadVerify should do and prove that it does it: requirements for the credential lifecycle, trust and UX standards for verification, the test strategy, and the hackathon demo itself.
+Define what AcadVerify should do and prove that it does it — including the
+privacy claims, which are now the product's core promise and its biggest
+credibility risk.
 
 ## Owns
 
 - Documentation (`docs/`)
-- Testing
-- Sample Data (`data/`)
-- Demo
-- Presentation
+- Test strategy
+- Sample data (`data/`)
+- Demo and presentation
 
 ## Responsibilities
 
 ### Product
 
-- Own the credential lifecycle requirements: issuance, certificate delivery, verification, and revocation — for each stakeholder (university, student, employer/verifier).
-- Write clear acceptance criteria for every feature; ambiguity in a verification product becomes a trust bug.
-- Own the docs set (`architecture.md`, `api-spec.md`, and this folder) and keep it current with what's actually built.
-- Track compliance constraints: no PII on-chain, consent for what a QR exposes, erasure implications (see `../data-model.md`).
-- Own the hackathon demo storyline and presentation (see `../hackathon-plan.md`); rehearse the full flow at least three times before judging.
+- Own the credential lifecycle requirements for each stakeholder (university,
+  student, employer).
+- **Own the disclosure policy**: which fields are disclosed by default, which
+  require consent, and how that consent is presented. This is a product
+  decision with cryptographic consequences, not a UI detail.
+- Keep docs current with what is actually built.
+- **Police the privacy claims.** Overclaiming is the fastest way to lose
+  credibility with judges who know ZK. Two specific claims to keep honest:
+  - `credentialId` is disclosed on every verification, so verification is
+    **not unlinkable** — the network sees which credential was checked and when.
+    Never say "fully anonymous". The named remedy is in `../smart-contract.md`.
+  - The MVP has the platform custodying witness data and generating proofs, so
+    the verifier still trusts us not to refuse or forge. Say so, and say that
+    the contract is already agnostic about who supplies the witness.
+- Own the demo storyline (`../hackathon-plan.md`); rehearse at least three times
+  on the machine that will be used.
 
 ### QA
 
-- Own the test strategy across layers: contract tests (with the blockchain engineer), API integration tests, and end-to-end flows.
-- Maintain the critical-path e2e suite: issue → certificate → scan QR → VALID → revoke → REVOKED must pass on every release.
-- Design adversarial test cases: tampered documents (TAMPERED), forged issuer wallets, duplicate credential IDs, revoked-then-reshared certificates, unknown IDs.
-- Verify failure modes are honest: a service outage must never render as "invalid credential," and vice versa.
-- Manage sample data in `data/`: demo university, sample graduates, pre-issued testnet credentials, one deliberately tampered certificate for the demo.
-- Run release verification on staging against testnet before promotion; sign-off is required for production releases.
-- Triage bugs with severity tied to trust impact — anything that could show a false "VALID" is a stop-ship P0, always.
+- Own the test strategy: contract tests, chain-service integration tests, API
+  tests, e2e.
+- Maintain the critical path: issue → certificate → scan → VALID → consent to
+  disclose GPA → revoke → REVOKED.
+- Design adversarial cases: **wrong witness data must fail to produce a proof**
+  (not return a negative result), unauthorized issuer, duplicate ID, revoked
+  credential, unknown ID.
+- **Test the disclosure boundary directly**: assert that `studentId` appears
+  nowhere in any API response, log line, or on-chain transcript, and that
+  `revealGpa: false` yields no GPA.
+- Verify failure modes are honest: a proof-server outage must render as a
+  service error, never as an invalid credential. Test this by actually stopping
+  the proof server.
+- Maintain `data/`: demo university, sample graduates, and one credential with
+  **deliberately wrong witness data** for the forgery demo.
+- Triage by trust impact: a false `VALID`, or any leak of credential fields or
+  salts, is P0 always.
 
-## Works on branch
+## Branch
 
-`feature/docs`
+`<yourname>-docs`
 
-## Interfaces with other roles
+## Plugin skills
 
-- **Blockchain Engineer** ([blockchain-engineer.md](blockchain-engineer.md)): revocation semantics, testnet demo scenarios.
-- **Backend Engineer** ([backend-engineer.md](backend-engineer.md)): acceptance criteria for APIs, fixtures, error-state contracts.
-- **Frontend Engineer** ([frontend-engineer.md](frontend-engineer.md)): verification UX clarity, copy, edge-case states.
-- **SRE/DevOps** ([sre-devops.md](sre-devops.md)): release gates, staging environment, rollback decisions.
+`midnight-fact-check:*` — run the pitch and README claims through it before
+submitting. `core-concepts:zero-knowledge`, `core-concepts:privacy-patterns` for
+describing the system accurately.
+
+## Interfaces
+
+All roles. Particularly **Blockchain** and **Chain-service** on what the system
+does and does not reveal.
 
 ## Definition of done
 
-- Every feature has written acceptance criteria before implementation starts.
-- Release sign-off includes the critical-path e2e suite and the adversarial checklist.
-- A false "VALID" (shown for a tampered or revoked credential) is a P0 in triage, always.
-- Requirement changes are reflected in the test suite and docs in the same cycle.
+- Every feature has written acceptance criteria before implementation.
+- Release sign-off includes the critical path and the adversarial checklist.
+- A false `VALID`, or a leaked field/salt, is P0 in triage — always.
+- Every privacy claim in the README, pitch, and Devpost submission has been
+  checked against what the contract actually does.

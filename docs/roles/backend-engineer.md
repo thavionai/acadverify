@@ -1,41 +1,62 @@
-# Backend Engineer
+# Backend Engineer (FastAPI)
 
 ## Mission
 
-Own the off-chain services of AcadVerify: the FastAPI REST APIs, credential lifecycle logic, data storage, and the bridge between universities, verifiers, and the blockchain.
+Own the off-chain services: REST APIs, credential lifecycle, metadata storage,
+QR generation, and orchestration between universities, verifiers, and the
+chain-service.
 
 ## Owns
 
-- FastAPI
-- REST APIs
-- Blockchain Integration (Web3.py)
-- Database (DynamoDB + S3)
-- QR Generation
+- FastAPI (`backend/`)
+- REST APIs (`../api-spec.md`)
+- DynamoDB + S3
+- QR generation
+- Issuer authentication
 
 ## Responsibilities
 
-- Design and implement the REST APIs in `backend/`: credential issuance, listing/search, revocation, and the public verification endpoint (see `../api-spec.md`).
-- Own SHA256 hash generation and JSON canonicalization so stored documents deterministically match their on-chain hashes — this rule is shared with independent verifiers and must never fork (see `../data-model.md`).
-- Integrate with `AcademicCredential.sol` via Web3.py: send issue/revoke transactions, read verification state, track pending transactions to confirmation.
-- Manage data storage: DynamoDB for credential/institution metadata, S3 for canonical documents, QR-enabled certificates, and QR images.
-- Generate QR codes encoding the public verification URL, and the downloadable QR-enabled certificate.
-- Implement issuer authentication (API keys for MVP; university login is a future enhancement) and input validation on all endpoints.
-- Enforce honest failure modes: a chain/RPC outage returns `503 CHAIN_UNAVAILABLE`, never a "TAMPERED" or "invalid" result.
-- Keep the FastAPI OpenAPI docs (`/docs`) accurate with every endpoint change.
+- Implement issuance, listing/search, revocation, and the public verification
+  endpoint.
+- **Call the chain-service over HTTP for anything requiring a proof.**
+  `web3` is not a dependency of this service — Web3.py cannot talk to Midnight.
+  If you find yourself reaching for an RPC client, the call belongs in the
+  chain-service.
+- **Never compute a commitment or hash of credential fields.** That arithmetic
+  happens only inside the circuit; a Python SHA256 will never match
+  `persistentCommit` and reimplementing it is a bug, not an optimisation. See
+  `../data-model.md`.
+- Store metadata in DynamoDB and certificates/QR in S3. **Do not store the
+  canonical credential document** — it is the commitment pre-image and belongs
+  in witness storage only.
+- Generate QR codes encoding the public verify URL and nothing else.
+- Implement issuer API-key auth and input validation.
+- Enforce honest failure modes: proof-server outage → `503
+  PROOF_SERVICE_UNAVAILABLE`; chain outage → `503 CHAIN_UNAVAILABLE`. **Never
+  render either as `INVALID_PROOF`.**
+- Surface the `withheld` list in verify responses so the UI can show what was
+  *not* disclosed.
+- Keep `/docs` accurate with every endpoint change.
 
-## Works on branch
+## Branch
 
-`feature/backend`
+`<yourname>-backend`
 
-## Interfaces with other roles
+## Interfaces
 
-- **Blockchain Engineer** ([blockchain-engineer.md](blockchain-engineer.md)): consumes contract ABI/address; jointly owns the hashing and credential-ID contract between off-chain records and on-chain state.
-- **Frontend Engineer** ([frontend-engineer.md](frontend-engineer.md)): provides stable APIs and clear error semantics so the UI can distinguish VALID / REVOKED / TAMPERED / service error.
-- **SRE/DevOps** ([sre-devops.md](sre-devops.md)): health checks, CloudWatch metrics, Docker image, Secrets Manager wiring.
-- **Product/QA** ([product-qa.md](product-qa.md)): acceptance criteria for endpoints; seed data in `data/`.
+- **Chain-service** ([chain-service-engineer.md](chain-service-engineer.md)):
+  owns the HTTP contract between the services.
+- **Frontend** ([frontend-engineer.md](frontend-engineer.md)): stable APIs and
+  error semantics.
+- **SRE/DevOps** ([sre-devops.md](sre-devops.md)): health checks, metrics,
+  images, secrets.
+- **Product/QA** ([product-qa.md](product-qa.md)): acceptance criteria, seed data.
 
 ## Definition of done
 
-- New endpoints have unit and integration tests, including failure modes (hash mismatch, revoked credential, unauthorized issuer, chain unavailable).
-- No PII reaches logs, error messages, or on-chain payloads — enforced by test or serializer allowlist, not convention.
-- OpenAPI spec and `../api-spec.md` are updated in the same change.
+- Endpoints have unit and integration tests including failure modes (revoked,
+  unauthorized issuer, proof service down, chain down).
+- No credential fields or salts in logs, error messages, or responses —
+  enforced by a test, not convention.
+- Verify responses distinguish "the credential failed" from "we failed".
+- `../api-spec.md` updated in the same change.

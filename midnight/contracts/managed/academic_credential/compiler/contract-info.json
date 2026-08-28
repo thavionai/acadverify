@@ -1,0 +1,239 @@
+{
+  "compiler-version": "0.34.0",
+  "language-version": "0.26.0",
+  "runtime-version": "0.19.0",
+  "circuits": [
+    {
+      "name": "authorizeIssuer",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "issuerPk",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "issue",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "credentialId",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "revokeCredential",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "credentialId",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "proveCredential",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "credentialId",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "revealGpa",
+          "type": {
+            "type-name": "Boolean"
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Struct",
+        "name": "DisclosedClaim",
+        "elements": [
+          {
+            "name": "institutionId",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "degreeCode",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 4294967295
+            }
+          },
+          {
+            "name": "graduationYear",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 65535
+            }
+          },
+          {
+            "name": "gpaTimes100",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 65535
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "witnesses": [
+    {
+      "name": "localSecretKey",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "credentialFields",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Struct",
+        "name": "CredentialData",
+        "elements": [
+          {
+            "name": "studentId",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "issuerPk",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "institutionId",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "degreeCode",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 4294967295
+            }
+          },
+          {
+            "name": "graduationYear",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 65535
+            }
+          },
+          {
+            "name": "gpaTimes100",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 65535
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "credentialSalt",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    }
+  ],
+  "contracts": [
+  ],
+  "ledger": [
+    {
+      "name": "issuers",
+      "index": 0,
+      "exported": true,
+      "storage": "Set",
+      "type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "credentials",
+      "index": 1,
+      "exported": true,
+      "storage": "Map",
+      "key": {
+        "type-name": "Bytes",
+        "length": 32
+      },
+      "value": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "revoked",
+      "index": 2,
+      "exported": true,
+      "storage": "Set",
+      "type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "platformOwner",
+      "index": 3,
+      "exported": true,
+      "storage": "Cell",
+      "type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    }
+  ]
+}

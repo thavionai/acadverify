@@ -1,21 +1,82 @@
 # AcadVerify — local development environment
 # Usage: docker compose up -d
-# See docs/local-setup.md for full setup steps.
+# See docs/local-setup.md for full setup, docs/midnight-stack.md for versions.
 #
-# The app services (hardhat, backend, frontend) are commented out until their
-# folders are scaffolded in Phases 2–4. Uncomment each as its code lands.
+# Five services: the three Midnight components (node, indexer, proof server)
+# plus local stand-ins for AWS DynamoDB and S3.
+#
+# Midnight image versions are PINNED. They were resolved from Docker Hub via the
+# midnight-tooling plugin's resolve-versions.sh and each tag was verified to
+# exist. Do not switch these to :latest — the node, indexer, and proof server
+# must be version-compatible with each other and with the target network.
 
 services:
-  # Local DynamoDB (replaces AWS DynamoDB in dev)
+  # ---- Midnight: the chain itself (Substrate RPC) --------------------------
+  node:
+    image: midnightntwrk/midnight-node:0.22.5
+    ports:
+      - "9944:9944"
+    environment:
+      CFG_PRESET: "dev"
+      SIDECHAIN_BLOCK_BENEFICIARY: "04bcf7ad3be7a5c790460be82a713af570f22e0f801f6659ab8e84a52be6969e"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9944/health"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  # ---- Midnight: indexer — GraphQL chain state on :8088 --------------------
+  indexer:
+    image: midnightntwrk/indexer-standalone:4.2.1
+    ports:
+      - "8088:8088"
+    environment:
+      RUST_LOG: "indexer=info,chain_indexer=info,indexer_api=info,wallet_indexer=info,indexer_common=info,fastrace_opentelemetry=off,info"
+      APP__APPLICATION__NETWORK_ID: "undeployed"
+      APP__INFRA__NODE__URL: "ws://node:9944"
+      APP__INFRA__STORAGE__PASSWORD: "indexer"
+      APP__INFRA__PUB_SUB__PASSWORD: "indexer"
+      APP__INFRA__LEDGER_STATE_STORAGE__PASSWORD: "indexer"
+      # Local devnet secret only — never reuse this value outside local dev.
+      APP__INFRA__SECRET: "303132333435363738393031323334353637383930313233343536373839303132"
+    healthcheck:
+      test: ["CMD-SHELL", "cat /var/run/indexer-standalone/running"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      node:
+        condition: service_healthy
+
+  # ---- Midnight: proof server — generates the ZK proofs --------------------
+  # First start downloads ZK parameters and can take several minutes. It is not
+  # hung. This service is CPU- and memory-bound and is the latency bottleneck
+  # for both issuance and verification (see docs/deployment.md).
+  proof-server:
+    image: midnightntwrk/proof-server:8.1.0
+    command: ["midnight-proof-server -v"]
+    ports:
+      - "6300:6300"
+    environment:
+      RUST_BACKTRACE: "full"
+
+  # ---- Local DynamoDB (stands in for AWS DynamoDB) -------------------------
   dynamodb:
     image: amazon/dynamodb-local:latest
+    # Runs as root so it can write to the named volume: the image's default
+    # user is dynamodblocal (uid 1000), but Docker creates the volume's mount
+    # point root-owned, so sqlite fails with "unable to open database file"
+    # and every API call hangs while the container still reports "Up".
+    user: root
     command: -jar DynamoDBLocal.jar -sharedDb -dbPath /data
     ports:
       - "8000:8000"
     volumes:
       - dynamodb-data:/data
 
-  # Local S3-compatible storage (replaces AWS S3 in dev)
+  # ---- Local S3-compatible storage (stands in for AWS S3) ------------------
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -28,22 +89,27 @@ services:
     volumes:
       - minio-data:/data
 
-  # Midnight proof server — generates ZK proofs for transactions (Phase 2).
-  # The midnight/ example tooling can also manage this via `yarn env:up`;
-  # verify the image tag against docs.midnight.network before enabling.
-  # proof-server:
-  #   image: midnightnetwork/proof-server:latest
+  # ---- App services — enable as their folders land -------------------------
+  # chain-service: Node 22 + Midnight.js. FastAPI reaches Midnight only through
+  # this sidecar (Midnight.js is TypeScript-only; Web3.py cannot talk to it).
+  # Its image MUST include the compiled keys/ and zkir/ or proving fails.
+  # chain-service:
+  #   build: ./midnight/chain-service
   #   ports:
-  #     - "6300:6300"
+  #     - "8090:8090"
+  #   environment:
+  #     MIDNIGHT_NETWORK_ID: undeployed
+  #     MIDNIGHT_NODE_URL: http://node:9944
+  #     MIDNIGHT_INDEXER_URL: http://indexer:8088/api/v4/graphql
+  #     MIDNIGHT_INDEXER_WS: ws://indexer:8088/api/v4/graphql/ws
+  #     MIDNIGHT_PROOF_SERVER_URL: http://proof-server:6300
+  #   depends_on:
+  #     - node
+  #     - indexer
+  #     - proof-server
+  #   volumes:
+  #     - private-state:/app/.private-state   # witness data — see docs/data-model.md
 
-  # Local EVM node — Cross-Chain stretch track only (see docs/smart-contract.md)
-  # hardhat:
-  #   build: ./blockchain
-  #   command: npx hardhat node --hostname 0.0.0.0
-  #   ports:
-  #     - "8545:8545"
-
-  # FastAPI backend — enable once backend/ exists (Phase 3)
   # backend:
   #   build: ./backend
   #   ports:
@@ -52,14 +118,13 @@ services:
   #   environment:
   #     DYNAMODB_ENDPOINT: http://dynamodb:8000
   #     S3_ENDPOINT: http://minio:9000
-  #     RPC_URL: http://hardhat:8545
+  #     CHAIN_SERVICE_URL: http://chain-service:8090
   #   depends_on:
   #     - dynamodb
   #     - minio
   #   volumes:
-  #     - ./backend:/app   # hot reload
+  #     - ./backend:/app
 
-  # Next.js frontend — enable once frontend/ exists (Phase 4)
   # frontend:
   #   build: ./frontend
   #   ports:
@@ -73,3 +138,4 @@ services:
 volumes:
   dynamodb-data:
   minio-data:
+  private-state:

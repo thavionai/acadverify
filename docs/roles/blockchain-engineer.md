@@ -1,41 +1,64 @@
-# Blockchain Engineer
+# Blockchain Engineer (Compact / Midnight)
 
 ## Mission
 
-Own the on-chain layer of AcadVerify: `AcademicCredential.sol` and everything that makes an issued academic credential tamper-evident and independently verifiable.
+Own the on-chain layer: `academic_credential.compact`, its circuits, and the
+privacy guarantees the whole product rests on.
 
 ## Owns
 
-- Compact (Midnight smart contract language) — primary, see `../midnight-integration.md`
-- Midnight local devnet + testnet deployment
-- Solidity / Hardhat (`blockchain/contracts/`) — Cross-Chain stretch
-- Contract Testing
-- Chain-service contract API handoff (compiled TS API + keys)
+- **Compact contract** — `midnight/contracts/academic_credential.compact`
+- Circuit design, disclosure boundaries, commitment scheme
+- Contract tests (happy path + adversarial)
+- Deployment to local devnet and **`preview`**
+- The compiled handoff to the chain-service: `contract/`, `keys/`, `zkir/`
+- *(Cross-Chain stretch only)* the Solidity anchor
 
 ## Responsibilities
 
-- Design and implement `AcademicCredential.sol`: issue credential, verify credential, revoke credential, prevent duplicates, emit events, restrict issuers (see `../smart-contract.md`).
-- Define the on-chain data model: credential ID, SHA256 document hash, issuer wallet, metadata URI, timestamp, revocation status — **no personal data ever on-chain**.
-- Maintain the authorized-issuer set: how university wallets are authorized, rotated, and revoked on-chain.
-- Write and maintain Hardhat unit tests covering happy paths and reverts (unauthorized issuer, duplicate ID, wrong-issuer revocation, double revoke).
-- Own deployment scripts (`blockchain/scripts/`) for local node, testnet, and eventually mainnet; commit deployed addresses/ABIs per network for the backend to consume.
-- Track gas costs per operation; keep issuance a single cheap transaction.
-- Own key-management practices for deployer and issuer wallets together with SRE/DevOps (keys live in AWS Secrets Manager).
-- Support future standards alignment: W3C Verifiable Credentials, DIDs, NFT certificates (future enhancements list).
+- Maintain the four circuits — `authorizeIssuer`, `issue`, `revokeCredential`,
+  `proveCredential` — per `../smart-contract.md`.
+- **Own the disclosure boundary.** Every `disclose()` in the contract is a
+  deliberate decision that something becomes public. Review each one as a
+  privacy change, not a syntax fix.
+- Keep credential fields in witnesses. **No personal data, and no hash of
+  personal data, on the ledger** — only blinded commitments.
+- Own domain separation: every hash carries its own prefix (e.g.
+  `"acadverify:pk:"`) so values from different contexts can never collide or
+  become linkable.
+- Write tests including the case that matters most: **wrong witness data must
+  fail to produce a proof**, not return a negative result.
+- Deploy via the chain-service (`deployContract`), never manually. Commit
+  addresses to `midnight/deployments/<networkId>.json`.
+- Track proof generation cost per circuit — it is the product's latency budget.
+- Keep `compiler/contract-info.json` committed and reviewed: it is the
+  machine-checkable statement of what each circuit can reveal.
 
-## Works on branch
+## Branch
 
-`feature/blockchain`
+`<yourname>-blockchain`
 
-## Interfaces with other roles
+## Plugin skills
 
-- **Backend Engineer** ([backend-engineer.md](backend-engineer.md)): provides contract ABI + address per network; agrees on the SHA256 canonicalization rule and the credential-ID encoding used on-chain.
-- **SRE/DevOps** ([sre-devops.md](sre-devops.md)): RPC provider setup, Secrets Manager key custody, contract-deploy CI workflow.
-- **Product/QA** ([product-qa.md](product-qa.md)): testnet scenarios for the demo (issue → verify → revoke → tamper).
+`compact-core:*` (ledger, structure, privacy-disclosure, security, patterns),
+`compact-examples:code-examples`, `midnight-verify:*`,
+`midnight-cq:compact-testing`, `midnight-status-codes:*`
+
+## Interfaces
+
+- **Chain-service** ([chain-service-engineer.md](chain-service-engineer.md)):
+  hands over the compiled `contract/` API, `keys/`, and `zkir/`; jointly owns the
+  witness shape.
+- **Backend** ([backend-engineer.md](backend-engineer.md)): agrees the
+  `credentialId` encoding.
+- **Product/QA** ([product-qa.md](product-qa.md)): adversarial scenarios.
 
 ## Definition of done
 
-- Contract changes have tests covering happy path, revocation, and adversarial cases (forged issuer, duplicate ID, hash mismatch).
-- Gas impact of the change is measured and noted.
-- Deployment steps are scripted and repeatable — never manual console transactions.
-- Any on-chain data model change is reflected in the backend's verification logic and in `../smart-contract.md`.
+- `compact compile` succeeds and the circuit count is unchanged (or the change
+  is intentional and reviewed).
+- Tests cover happy path, revocation, duplicate, unauthorized issuer, and
+  wrong-witness-cannot-prove.
+- Any change to a circuit's arguments or result type is called out explicitly in
+  the PR — that is a change to what the system can reveal.
+- No new `disclose()` without a written justification.
