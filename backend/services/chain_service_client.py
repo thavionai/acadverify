@@ -85,9 +85,6 @@ async def _request(method: str, path: str, **kwargs: Any) -> dict:
 
     return resp.json()
 
-
-
-
 async def issue_credential(
     credential_id: str,
     university_id: str,
@@ -95,30 +92,37 @@ async def issue_credential(
     witness: dict,
 ) -> dict:
     payload = {
-        "credential_id": credential_id,
-        "university_id": university_id,
-        "credential_type": credential_type,
-        "witness": witness,
+        "credentialId": credential_id,
+        "fields": {
+            "studentId": witness.get("student_id"),
+            "issuerPk": witness.get("issuer_pk"),
+            "institutionId": university_id,
+            "degreeCode": credential_type,
+            "graduationYear": witness.get("graduation_year"),
+            "gpaTimes100": witness.get("gpa_times_100"),
+        }
     }
-    return await _request("POST", "/internal/credentials/issue", json=payload)
+    return await _request("POST", "/chain/issue", json=payload)
 
 
 async def revoke_credential(credential_id: str, reason: str | None = None) -> dict:
-
-    payload = {"credential_id": credential_id, "reason": reason}
-    return await _request("POST", "/internal/credentials/revoke", json=payload)
+    payload = {"credentialId": credential_id}
+    if reason:
+        payload["reason"] = reason
+    return await _request("POST", "/chain/revoke", json=payload)
 
 
 async def get_proof_state(credential_id: str) -> dict:
-
-    return await _request("GET", f"/internal/credentials/{credential_id}/proof-state")
+    # The ID is passed directly in the URL path, no payload needed
+    return await _request("GET", f"/chain/state/{credential_id}")
 
 
 async def verify_proof(credential_id: str, proof_payload: str, requested_fields: list[str]) -> dict:
-
     payload = {
-        "credential_id": credential_id,
-        "proof_payload": proof_payload,
-        "requested_fields": requested_fields,
+        "credentialId": credential_id,
+        "proofPayload": proof_payload,
+        "requestedFields": requested_fields,
     }
-    return await _request("POST", "/internal/credentials/verify", json=payload)
+    return await _request("POST", "/chain/prove", json=payload)
+
+
