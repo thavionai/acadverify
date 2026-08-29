@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from core.config import get_settings
 from core.security import require_admin_api_key
 from models.schemas import (
     CredentialIndexItem,
@@ -31,6 +32,12 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
 )
 async def issue_credential(payload: IssueCredentialRequest) -> IssueCredentialResponse:
+    if not get_settings().issuer_pk:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Issuer signing key is not configured.",
+        )
+
     credential_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
     chain_result = await chain_service_client.issue_credential(

@@ -30,6 +30,7 @@ router = APIRouter(prefix="/api/v1/credentials", tags=["verification"])
 _DISCLOSABLE_FIELD_ALLOWLIST = {
     "degree_name",
     "graduation_date",
+    "gpa",
     "honors",
     "credential_type",
     "university_id",
@@ -37,12 +38,12 @@ _DISCLOSABLE_FIELD_ALLOWLIST = {
 
 
 def _log_status(chain_valid: bool, on_chain_status: str) -> str:
-
-    if not chain_valid:
-        return "INVALID_PROOF"
+    # Revocation wins over proof validity: a check against a revoked
+    # credential is a legitimate lookup, not a forgery attempt, and the
+    # anomaly detector must be able to tell the two apart.
     if on_chain_status == "revoked":
         return "REVOKED"
-    if on_chain_status == "issued":
+    if chain_valid and on_chain_status == "issued":
         return "VALID"
     return "INVALID_PROOF"
 

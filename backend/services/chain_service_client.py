@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 from typing import Any
 
@@ -85,44 +86,93 @@ async def _request(method: str, path: str, **kwargs: Any) -> dict:
 
     return resp.json()
 
+def _hex32(*parts: str) -> str:
+    """Opaque 32-byte hex identifier derived from human-readable parts.
+
+    The chain contract only ever sees these digests (schemas.ts: studentId is
+    "Opaque student identifier. NEVER a name."), so names and free-text IDs
+    stay off-chain by construction.
+    """
+    return hashlib.sha256(":".join(parts).encode()).hexdigest()
+
+
 async def issue_credential(
     credential_id: str,
     university_id: str,
     credential_type: str,
     witness: dict,
 ) -> dict:
+    # /chain/issue takes 32-byte hex identifiers and small integers only —
+    # see midnight/chain-service/src/http/schemas.ts (the frozen contract).
+    # Human-readable witness values are hashed or encoded here, never sent.
+    graduation_date = str(witness.get("graduation_date") or "")
+    year_prefix = graduation_date[:4]
+    gpa = witness.get("gpa")
     payload = {
         "credentialId": credential_id,
         "fields": {
-            "studentId": witness.get("student_id"),
-            "issuerPk": witness.get("issuer_pk"),
-            "institutionId": university_id,
-            "degreeCode": credential_type,
-            "graduationYear": witness.get("graduation_year"),
-            "gpaTimes100": witness.get("gpa_times_100"),
-        }
+            "studentId": _hex32("student", str(witness.get("student_id", ""))),
+            "issuerPk": settings.issuer_pk,
+            "institutionId": _hex32("institution", university_id),
+            # Stable numeric code for the degree program (uint32 range).
+            "degreeCode": int.from_bytes(
+                hashlib.sha256(credential_type.encode()).digest()[:4], "big"
+            ),
+            "graduationYear": int(year_prefix) if year_prefix.isdigit() else 0,
+            "gpaTimes100": round(gpa * 100) if gpa is not None else 0,
+        },
     }
-    return await _request("POST", "/chain/issue", json=payload)
+    result = await _request("POST", "/chain/issue", json=payload)
+    # A 2xx means the credential was recorded; non-2xx raises above. The txId
+    # is the durable pointer back into chain state.
+    return {"status": "issued", "chain_proof_ref": result.get("txId"), "chain": result}
 
 
 async def revoke_credential(credential_id: str, reason: str | None = None) -> dict:
+    # `reason` is kept for the backend's own audit trail; the chain contract
+    # (RevokeRequestSchema) has no field for it and would strip it anyway.
     payload = {"credentialId": credential_id}
-    if reason:
-        payload["reason"] = reason
-    return await _request("POST", "/chain/revoke", json=payload)
+    result = await _request("POST", "/chain/revoke", json=payload)
+    return {"revoked_at": result.get("revokedAt"), "chain": result}
 
 
 async def get_proof_state(credential_id: str) -> dict:
-    # The ID is passed directly in the URL path, no payload needed
-    return await _request("GET", f"/chain/state/{credential_id}")
+    result = await _request("GET", f"/chain/state/{credential_id}")
+    if result.get("revoked"):
+        on_chain_status = "revoked"
+    elif result.get("exists"):
+        on_chain_status = "issued"
+    else:
+        on_chain_status = "unknown"
+    return {"on_chain_status": on_chain_status, "chain": result}
+
+
+# The only field the contract lets the holder optionally disclose
+# (ProveRequestSchema's enum); everything else in the request would fail
+# chain-service validation.
+_CHAIN_DISCLOSE_FIELDS = frozenset({"gpa"})
+
+_PROVE_STATUS_TO_ON_CHAIN = {"VALID": "issued", "REVOKED": "revoked"}
 
 
 async def verify_proof(credential_id: str, proof_payload: str, requested_fields: list[str]) -> dict:
+    # proof_payload is not forwarded: the proof material lives in the
+    # chain-service's private-state vault and is re-derived there. The
+    # parameter stays so the public API contract is unchanged.
     payload = {
         "credentialId": credential_id,
-        "proofPayload": proof_payload,
-        "requestedFields": requested_fields,
+        "disclose": [f for f in requested_fields if f in _CHAIN_DISCLOSE_FIELDS],
     }
-    return await _request("POST", "/chain/prove", json=payload)
+    result = await _request("POST", "/chain/prove", json=payload)
+    chain_status = result.get("status")
+    disclosed_raw = result.get("disclosed") or {}
+    return {
+        "valid": chain_status == "VALID",
+        "on_chain_status": _PROVE_STATUS_TO_ON_CHAIN.get(chain_status, "unknown"),
+        # Withheld fields come back as null — drop them instead of leaking a
+        # literal "None" string to the verifier.
+        "disclosed": {k: str(v) for k, v in disclosed_raw.items() if v is not None},
+        "chain": result,
+    }
 
 

@@ -17,6 +17,10 @@ _dynamo_resource = boto3.resource(
     "dynamodb",
     region_name=settings.aws_region,
     endpoint_url=settings.dynamodb_endpoint_url,  # None in real AWS, set for local dev
+    # DynamoDB-local accepts any credentials but boto3 requires some to be
+    # resolvable; None in real AWS (default credential chain).
+    aws_access_key_id=settings.s3_access_key,
+    aws_secret_access_key=settings.s3_secret_key,
 )
 _table = _dynamo_resource.Table(settings.dynamodb_table_name)
 
