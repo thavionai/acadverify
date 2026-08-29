@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { issueCredential } from "@/lib/api";
 import { useWalletContext } from "@/lib/wallet-context";
 import { ON_CHAIN_HASHED_FIELDS } from "@/lib/types";
@@ -398,12 +399,15 @@ function IssueSuccess({
         >
           Issue another credential
         </button>
-        <a
+        {/* Must be a client-side Link: a plain <a> full-reloads the app and
+            drops the in-memory wallet connection, hiding the registry the
+            user was just sent to. */}
+        <Link
           href="/dashboard/registry"
           className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
         >
           View in Registry
-        </a>
+        </Link>
       </div>
     </section>
   );

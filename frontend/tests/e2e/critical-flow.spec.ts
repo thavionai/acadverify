@@ -89,7 +89,10 @@ test.describe("critical credential lifecycle", () => {
       }),
     );
 
-    await page.route("**/api/v1/credentials", async (route) => {
+    // Regex, not a glob: the registry appends ?status=/&search= query params
+    // and "**/api/v1/credentials" would let those requests through to a real
+    // backend if one is running.
+    await page.route(/\/api\/v1\/credentials(\?.*)?$/, async (route) => {
       if (route.request().method() === "POST") {
         issued = true;
         return route.fulfill({
@@ -149,7 +152,8 @@ test.describe("critical credential lifecycle", () => {
     await page.getByRole("button", { name: "Connect Wallet" }).click();
     await expect(page.getByText(ISSUER_ADDRESS.slice(0, 5))).toBeVisible();
 
-    await page.getByRole("link", { name: "Issue Credentials" }).click();
+    // Both the sidebar and the overview card link here — either is fine.
+    await page.getByRole("link", { name: "Issue Credentials", exact: true }).click();
     await page.getByLabel("Student Full Name").fill(BASE_CREDENTIAL.studentName);
     await page.getByLabel("Student ID").fill(BASE_CREDENTIAL.studentId);
     await page.getByLabel("Institution").fill(BASE_CREDENTIAL.institution);
@@ -171,18 +175,26 @@ test.describe("critical credential lifecycle", () => {
     // 3 & 4. Scan/verify: navigate directly as the QR flow would.
     await page.goto(`/verify/${CREDENTIAL_ID}`);
     await expect(page.getByText("Valid credential")).toBeVisible();
-    await expect(page.getByText("Student Id")).not.toBeVisible(); // withheld by default
+    // "Student Id" the LABEL is supposed to be visible — in the Withheld
+    // panel, which is the product surface for selective disclosure. What
+    // must never appear is the student's actual data.
+    await expect(page.getByText(BASE_CREDENTIAL.studentName)).not.toBeVisible();
+    await expect(page.getByText(BASE_CREDENTIAL.studentId)).not.toBeVisible();
 
     // 5. Consent-to-disclose: toggle GPA on and confirm the same credential
     // now shows the previously withheld field.
     await page.getByRole("button", { name: "GPA Disclosed" }).click();
     await expect(page.getByText("3.85")).toBeVisible();
 
-    // 6. Revoke from the dashboard
+    // 6. Revoke from the dashboard. goto() is a full page load, which drops
+    // the in-memory wallet connection — reconnect before acting.
     await page.goto("/dashboard/registry");
+    await page.getByRole("button", { name: "Connect Wallet" }).click();
     await page.getByRole("button", { name: "Revoke" }).click();
     await page.getByRole("button", { name: "Confirm Revoke" }).click();
-    await expect(page.getByText("Revoked")).toBeVisible();
+    // Scoped to the table: "Revoked" also appears in the status filter
+    // dropdown and the modal copy.
+    await expect(page.getByRole("table").getByText("Revoked", { exact: true })).toBeVisible();
 
     // 7. Re-verify: the same public page must now read REVOKED, not
     // INVALID_PROOF or a generic error - a revoked credential is not the
@@ -199,7 +211,12 @@ test.describe("critical credential lifecycle", () => {
     await page.goto(`/verify/${CREDENTIAL_ID}`);
 
     await expect(page.getByText("Service error")).toBeVisible();
-    await expect(page.getByText(/not a rejection of the credential/i)).toBeVisible();
+    // A 503 maps to PROOF_SERVICE_UNAVAILABLE ("not a problem with the
+    // credential"); other failures say "not a rejection of the credential".
+    // Either way the copy must blame the service, never the credential.
+    await expect(
+      page.getByText(/not a (rejection of|problem with) the credential/i),
+    ).toBeVisible();
     await expect(page.getByText("Invalid proof")).not.toBeVisible();
     await expect(page.getByText("Revoked credential")).not.toBeVisible();
   });
