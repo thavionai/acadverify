@@ -33,7 +33,9 @@ else
 fi
 
 # MinIO ships the `mc` client inside its own image — no host install needed.
+# Anonymous download lets the browser load QR PNGs straight from the bucket.
 docker compose exec -T minio sh -c \
   "mc alias set local http://localhost:9000 '$S3_ACCESS_KEY' '$S3_SECRET_KEY' >/dev/null \
-   && mc mb --ignore-existing local/'$S3_BUCKET'"
-echo "MinIO bucket '$S3_BUCKET' ready."
+   && mc mb --ignore-existing local/'$S3_BUCKET' \
+   && mc anonymous set download local/'$S3_BUCKET' >/dev/null"
+echo "MinIO bucket '$S3_BUCKET' ready (anonymous download enabled)."

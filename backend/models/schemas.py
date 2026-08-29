@@ -28,6 +28,9 @@ class CredentialIndexItem(BaseModel):
     # Non-sensitive search aid, e.g. a program/degree category. Deliberately
     # does NOT include grades, GPA, or student identity.
     credential_type: str | None = None
+    # Cohort year only — displayed in the issuer dashboard registry. Still
+    # no student identity.
+    graduation_year: int | None = None
 
 
 

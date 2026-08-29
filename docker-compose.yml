@@ -113,7 +113,6 @@ services:
     ports:
       - "8090:8090"
     environment:
-      CHAIN_MODE: mock
       CHAIN_SERVICE_PORT: 8090
       MIDNIGHT_NETWORK_ID: undeployed
       MIDNIGHT_NODE_URL: http://node:9944
@@ -122,8 +121,16 @@ services:
       MIDNIGHT_PROOF_SERVER_URL: http://proof-server:6300
       MIDNIGHT_ZK_CONFIG_PATH: ./managed/academic_credential
       MIDNIGHT_PRIVATE_STATE_PATH: /app/.private-state
-      # Demo-only tamper endpoint. MUST remain false in any deployed config.
-      ALLOW_DEBUG_ENDPOINTS: "false"
+      # Live mode only: the deployed contract (midnight/deployments/<net>.json,
+      # written by `npm run deploy`) and the wallet seed. Empty in mock mode.
+      CONTRACT_ADDRESS: "${CONTRACT_ADDRESS:-}"
+      MIDNIGHT_WALLET_SEED: "${MIDNIGHT_WALLET_SEED:-}"
+      # Demo-only tamper endpoint (the "forge" step of the demo storyline).
+      # Interpolated from .env so local demos can enable it; MUST remain
+      # false in any deployed config.
+      ALLOW_DEBUG_ENDPOINTS: "${ALLOW_DEBUG_ENDPOINTS:-false}"
+      # live mode needs the chain-service to reach the devnet by service name.
+      CHAIN_MODE: "${CHAIN_MODE:-mock}"
     depends_on:
       - node
       - indexer

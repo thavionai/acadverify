@@ -10,7 +10,8 @@ settings = get_settings()
 
 
 def build_verify_url(credential_id: str) -> str:
-    return f"{settings.verify_base_url.rstrip('/')}/v/{credential_id}"
+    # Must match the frontend's public route: app/verify/[credentialId].
+    return f"{settings.verify_base_url.rstrip('/')}/verify/{credential_id}"
 
 
 def generate_qr_png_bytes(data_url: str) -> bytes:

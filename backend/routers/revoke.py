@@ -5,11 +5,10 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from core.security import require_admin_api_key
+from core.security import require_admin_or_issuer
 from models.schemas import (
     CredentialStatus,
     RevokeCredentialRequest,
-    RevokeCredentialResponse,
 )
 from services import chain_service_client, dynamo_client
 
@@ -18,18 +17,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/v1/credentials",
     tags=["revocation"],
-    dependencies=[Depends(require_admin_api_key)],
+    # Admin key (API/ops path) or the dashboard's issuer header (MVP).
+    dependencies=[Depends(require_admin_or_issuer)],
 )
 
 
-@router.post(
-    "/{credential_id}/revoke",
-    response_model=RevokeCredentialResponse,
-)
+def _revoke_response(credential_id: str, status_value: CredentialStatus, revoked_at: datetime) -> dict:
+    # Field names the dashboard reads (id, uppercase status —
+    # frontend/lib/types.ts RevokeCredentialResult) plus the original keys
+    # for anything scripted against the earlier shape.
+    return {
+        "id": credential_id,
+        "credential_id": credential_id,
+        "status": "REVOKED" if status_value == CredentialStatus.REVOKED else "ACTIVE",
+        "revoked_at": revoked_at.isoformat(),
+    }
+
+
+@router.post("/{credential_id}/revoke")
 async def revoke_credential(
     credential_id: str,
     payload: RevokeCredentialRequest | None = None,
-) -> RevokeCredentialResponse:
+) -> dict:
     existing = await dynamo_client.get_credential_index(credential_id)
     if existing is None:
         raise HTTPException(
@@ -40,10 +49,8 @@ async def revoke_credential(
     if existing.status == CredentialStatus.REVOKED:
         # Idempotent: revoking an already-revoked credential just returns
         # the existing state rather than erroring.
-        return RevokeCredentialResponse(
-            credential_id=credential_id,
-            status=existing.status,
-            revoked_at=existing.revoked_at or datetime.now(timezone.utc),
+        return _revoke_response(
+            credential_id, existing.status, existing.revoked_at or datetime.now(timezone.utc)
         )
 
     reason = payload.reason if payload else None
@@ -78,8 +85,4 @@ async def revoke_credential(
             ),
         ) from exc
 
-    return RevokeCredentialResponse(
-        credential_id=credential_id,
-        status=updated.status,
-        revoked_at=revoked_at,
-    )
+    return _revoke_response(credential_id, updated.status, revoked_at)
