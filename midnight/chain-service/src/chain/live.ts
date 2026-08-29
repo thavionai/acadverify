@@ -191,6 +191,17 @@ class LiveChainAdapter implements ChainAdapter {
     });
   }
 
+  // MERGE NOTE (roberto-blockchain, 2026-08-29): origin/main independently added
+  // a submitTx() wrapper around this method's callTx.revokeCredential call to
+  // surface unexpected proof/submission failures as PROOF_SERVICE_UNAVAILABLE
+  // instead of a bare 500 (see chain-service-engineer.md). That change still
+  // wraps the OLD emptyWorkingSet(issuerSk) call — it predates this fix and
+  // does not touch the security bug below. When merging: keep the real
+  // vault-loaded witness data (required so the new contract-level asserts in
+  // revokeCredential don't reject every legitimate revocation) AND wrap the
+  // callTx.revokeCredential call in submitTx() for consistency with
+  // authorizeIssuer/issue. The two changes are complementary, not conflicting
+  // in intent — they just touch the same lines.
   async revoke(credentialId: string): Promise<RevokeResult> {
     return this.queue.run(async () => {
       const key = credentialId.trim().toUpperCase();
