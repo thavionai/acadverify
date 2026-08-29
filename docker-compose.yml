@@ -139,7 +139,7 @@ services:
         - "8080:8080"
       env_file: .env
       environment:
-        DYNAMODB_ENDPOINT: http://dynamodb:8000
+        DYNAMODB_ENDPOINT_URL: http://dynamodb:8000
         S3_ENDPOINT: http://minio:9000
         CHAIN_SERVICE_URL: http://chain-service:8090
       depends_on:
