@@ -1,0 +1,19 @@
+# Gitleaks config — extends the default rules with a narrow allowlist.
+# Only add entries here for values that are DELIBERATELY public.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "AcadVerify false positives"
+paths = [
+  # Compiler-generated Compact contract output: the hex constants in the
+  # generated contract API are circuit constants, not secrets.
+  '''midnight/chain-service/managed/''',
+  '''midnight/contracts/managed/''',
+]
+regexes = [
+  # Documented local-dev MinIO password for the Docker stand-in
+  # (.env.example, docker-compose.yml, docs). Never used outside localhost.
+  '''acadverify123''',
+]

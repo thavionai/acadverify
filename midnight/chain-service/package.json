@@ -1,0 +1,63 @@
+{
+  "name": "@acadverify/chain-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "compact": "compact compile +0.31.1 ../contracts/academic_credential.compact ./managed/academic_credential",
+    "compact:fast": "compact compile +0.31.1 -- --skip-zk ../contracts/academic_credential.compact ./managed/academic_credential",
+    "build": "tsc",
+    "dev": "node --import tsx --watch src/index.ts",
+    "start": "node --import tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "deploy": "node --import tsx src/scripts/deploy.ts",
+    "authorize": "node --import tsx src/scripts/authorize-issuer.ts --",
+    "smoke": "node --import tsx src/scripts/smoke.ts",
+    "smoke:http": "node --import tsx src/scripts/http-smoke.ts",
+    "check:salt-leak": "node --import tsx src/scripts/salt-leak-check.ts",
+    "vault:export": "node --import tsx src/scripts/vault-export.ts --",
+    "vault:import": "node --import tsx src/scripts/vault-import.ts --"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-js": "2.5.1",
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/ledger-v8": "8.1.0",
+    "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-network-id": "4.1.1",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-types": "4.1.1",
+    "@midnight-ntwrk/wallet-sdk-abstractions": "2.1.0",
+    "@midnight-ntwrk/wallet-sdk-address-format": "3.1.2",
+    "@midnight-ntwrk/wallet-sdk-dust-wallet": "4.1.0",
+    "@midnight-ntwrk/wallet-sdk-facade": "4.0.1",
+    "@midnight-ntwrk/wallet-sdk-hd": "3.0.2",
+    "@midnight-ntwrk/wallet-sdk-shielded": "3.0.1",
+    "@midnight-ntwrk/wallet-sdk-unshielded-wallet": "3.1.0",
+    "express": "^4.21.2",
+    "level": "^9.0.0",
+    "pino": "^9.7.0",
+    "rxjs": "^7.8.2",
+    "ws": "^8.18.0",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.0"
+  },
+  "overrides": {
+    "@midnight-ntwrk/ledger-v8": "8.1.0"
+  }
+}

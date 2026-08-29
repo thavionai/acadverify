@@ -1,0 +1,9 @@
+{
+  "networkId": "undeployed",
+  "contractAddress": "01b509a6b702e5a3d236f39ae5b2e810a43847c9b426c8fc9c9ae44991c1b00e",
+  "deployTxId": "0027643fbdb72832d6601ea05da8cdadbc564fccce71ba1578e230e01b63924734",
+  "blockHeight": 880,
+  "platformOwnerPk": "94141144185ca6f2251cf4aa9dc85f19c1b7e1f7a56c9f3f4a4c8dad5a73feae",
+  "demoIssuerPk": "5d2dec7260dbf797514666c471967b2407f18cff958b39974e0085f1e0e52710",
+  "deployedAt": "2026-08-28T20:27:14.783Z"
+}

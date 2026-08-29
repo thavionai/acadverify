@@ -60,9 +60,11 @@ unrepresentable rather than merely prohibited.
 Generates every ZK proof for issuance, revocation, and verification. Runs
 locally in Docker (:6300) and self-hosted in every deployed environment.
 
-It is CPU-bound with 2 workers by default, which makes it — not block time —
-the latency-determining component of the product. This reshapes the SLOs
-(`deployment.md`) and is the top demo-day risk (`hackathon-plan.md`).
+It is CPU-bound (4 proving workers in our compose config, raised from the
+2-worker default), which makes it — not block time — the latency-determining
+component of the product. **Measured**: issuance proving takes ~19s. This
+reshapes the SLOs (`deployment.md`) and is the top demo-day risk
+(`hackathon-plan.md`).
 
 ### Indexer — chain reads and independent verification
 
@@ -125,7 +127,7 @@ plugin reference is what caught:
 
 | What the generic design said | What the plugins established | Consequence if missed |
 |---|---|---|
-| `pragma language_version >= 0.16` | Current is `>= 0.26`; compiler 0.34.0 | Stale syntax, confusing errors |
+| `pragma language_version >= 0.16` | `>= 0.23` with compiler 0.31.1 — the version whose runtime (0.16.0) the SDK is built against | Stale syntax; and using the *latest* compiler instead breaks the SDK |
 | Deploy to "testnet" | Networks are `undeployed` / `preview` / `preprod` | Wrong endpoints, lost time |
 | Link to a block explorer | No explorer exists; use indexer GraphQL | A demo feature that cannot be built |
 | `Set` for private membership | `Set.member` reveals the element; `MerkleTree` hides it | Overclaiming privacy to judges |
@@ -173,14 +175,23 @@ Verified locally on 2026-08-28:
 |---|---|
 | Contract compiles | ✅ 4 circuits, prover+verifier keys, TS API emitted |
 | Selective disclosure is real | ✅ `contract-info.json` records `proveCredential`'s result as exactly 4 fields; `studentId` absent |
-| Toolchain versions | ✅ `compact` 0.5.2, compiler 0.34.0, language 0.26.0, runtime 0.19.0 |
+| Toolchain versions | ✅ `compact` 0.5.2, compiler 0.31.1, language 0.23.0, runtime 0.16.0 |
 | Devnet runs | ✅ node + indexer + proof server all responding |
 | Indexer serves real data | ✅ `{ block { height hash } }` returned a block from the local chain |
 | Image tags exist | ✅ node 0.22.5, indexer-standalone 4.2.1, proof-server 8.1.0 |
+| Deployment to `undeployed` (local devnet) | ✅ `midnight/deployments/undeployed.json`, verified independently via an indexer query |
+| End-to-end proving through the chain-service | ✅ 11/11 adapter-level (`smoke.ts`) + 13/13 HTTP-level (`http-smoke.ts`) against the live devnet |
+| Real proof latency | ✅ **measured**: issuance ~19s (proof-bound). Verification is fast — it never touches the proof server, see `smart-contract.md`'s design decision |
+| Chain-service Docker image actually boots | ✅ built + run + curled; a real defect (missing `tsx` at runtime) was found and fixed this way — see `midnight/chain-service/README.md` |
+| Salt never appears in a response or log | ✅ `salt-leak-check.ts`, 6/6, against a real issuance on the live devnet |
+| Vault backup/restore | ✅ encrypted export → fresh vault → import, byte-identical, tested |
 
-Not yet verified (Phase 2): deployment to devnet or `preview`, end-to-end
-proving through the chain-service, and real proof latency. **Do not claim these
-in the submission until they run.**
+Not yet verified: deployment to **`preview`** — this needs tDUST from the
+faucet and is the blockchain-engineer's step (see
+`midnight/chain-service/README.md` for what the chain-service side needs from
+them). The detachable ZK proof bundle (`proof.level: "zk-verified"`) was
+attempted and deliberately cut — see the same README for exactly where that
+stands. **Do not claim either of these in the submission.**
 
 ---
 

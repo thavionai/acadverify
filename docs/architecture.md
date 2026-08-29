@@ -111,7 +111,7 @@ hard constraint of the platform, not a preference.
 - Generated contract API from `compact compile`
 
 ### Chain / privacy layer
-- **Compact** 0.34.0 (language 0.26.0) — `academic_credential.compact`
+- **Compact** 0.31.1 (language 0.23.0, runtime 0.16.0) — `academic_credential.compact`
 - **Proof server** — ZK proof generation (:6300)
 - **Indexer** — GraphQL chain state (:8088)
 - **Midnight node** — Substrate RPC (:9944)

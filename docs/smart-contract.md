@@ -1,17 +1,26 @@
 # AcadVerify — Contract Design (Compact / Midnight)
 
 **Primary contract:** `midnight/contracts/academic_credential.compact`
-**Status:** ✅ compiles with Compact **0.34.0** (language **0.26.0**, runtime
-**0.19.0**) — 4 circuits, prover + verifier keys, and a TypeScript API emitted.
+**Status:** ✅ compiles with Compact **0.31.1** (language **0.23.0**, runtime
+**0.16.0**) — 4 provable circuits plus the pure `publicKey`, prover + verifier
+keys, and a TypeScript API. Deployed and exercised end-to-end on the local
+devnet. **The compiler version is deliberate, not incidental** — see
+`midnight-stack.md` §"Do not upgrade these versions".
 
 Versions and toolchain: `midnight-stack.md`. Data rules: `data-model.md`.
 The retired Solidity design is preserved in the appendix as the Cross-Chain
 stretch only.
 
 ```bash
-compact compile midnight/contracts/academic_credential.compact \
-                midnight/contracts/managed/academic_credential
+cd midnight/chain-service && npm run compact
+# = compact compile +0.31.1 ../contracts/academic_credential.compact \
+#                          ./managed/academic_credential
 ```
+
+Output lands **inside** the chain-service package. The generated
+`contract/index.js` imports `@midnight-ntwrk/compact-runtime`, and Node resolves
+that from the file's own directory upward — from anywhere else it would never
+find the chain-service's `node_modules`.
 
 ## Responsibilities
 
@@ -80,12 +89,22 @@ records `proveCredential`'s result type as exactly these four fields.
 ```compact
 export circuit issue(credentialId: Bytes<32>): [] {
   const pk = publicKey(localSecretKey());
+  const fields = credentialFields();
   assert(issuers.member(disclose(pk)), "issuer not authorized");
+  assert(fields.issuerPk == pk, "issuer key mismatch");
   assert(!credentials.member(disclose(credentialId)), "duplicate credential");
-  const commitment = persistentCommit<CredentialData>(credentialFields(), credentialSalt());
+  const commitment = persistentCommit<CredentialData>(fields, credentialSalt());
   credentials.insert(disclose(credentialId), commitment);
 }
 ```
+
+The `fields.issuerPk == pk` assert is load-bearing and was **missing in the
+first version**. Without it, `issue` checked only that the *caller* was an
+authorized issuer — never that the credential's own `issuerPk` matched the
+calling key. Since `proveCredential` only checks that `fields.issuerPk` is *in*
+the issuer set, an authorized university could mint credentials attributed to a
+**different** authorized university, and verification would confirm them.
+Regression test: `test/contract/adversarial.test.ts`.
 
 The credential fields enter the circuit as witness data and leave as a single
 32-byte commitment. `persistentCommit` clears witness taint, which is why the
