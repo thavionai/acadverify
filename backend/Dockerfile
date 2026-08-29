@@ -17,6 +17,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of your application code into the container
 COPY . .
 
+# Run as a non-root user (container-escape hardening; Trivy DS-0002)
+RUN useradd -r -u 10001 appuser
+USER appuser
+
 # Expose the port defined in your docker-compose.yml
 EXPOSE 8080
 

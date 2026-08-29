@@ -40,6 +40,12 @@ ENV NODE_ENV=production \
     CHAIN_SERVICE_PORT=8090 \
     MIDNIGHT_ZK_CONFIG_PATH=./managed/academic_credential
 
+# Run as the node user the base image ships (container-escape hardening;
+# Trivy DS-0002). .private-state is created here with the right owner so the
+# named volume mounted there inherits writable ownership on first use.
+RUN mkdir -p /app/.private-state && chown -R node:node /app/.private-state
+USER node
+
 EXPOSE 8090
 
 # No tsx, no ts-node, no devDependencies in this stage — just compiled JS.

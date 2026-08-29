@@ -44,5 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The app compose declares env_file: .env, which is never committed.
+      # Validate against the committed template.
+      - run: cp .env.example .env
       - run: docker compose -f docker-compose.yml config -q
       - run: docker compose -f observability/docker-compose.observability.yml config -q
