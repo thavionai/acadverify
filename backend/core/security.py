@@ -42,3 +42,35 @@ async def require_admin_api_key(
         )
 
     return x_api_key
+
+
+ISSUER_HEADER_NAME = "X-Issuer-Address"
+
+
+async def require_issuer_address(
+    x_issuer_address: str | None = Header(default=None, alias=ISSUER_HEADER_NAME),
+) -> str:
+    """
+    MVP issuer identity: the dashboard sends the connected wallet's public
+    address in X-Issuer-Address (see frontend/lib/api.ts issuerHeaders).
+    Signature verification of that address is a stretch goal — until then
+    this only establishes *which* issuer is acting, not proof of key
+    ownership. Never treat it as strong auth outside local/demo setups.
+    """
+    if not x_issuer_address or not x_issuer_address.strip():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing issuer identity.",
+            headers={"WWW-Authenticate": ISSUER_HEADER_NAME},
+        )
+    return x_issuer_address.strip()
+
+
+async def require_admin_or_issuer(
+    x_api_key: str | None = Header(default=None, alias=API_KEY_HEADER_NAME),
+    x_issuer_address: str | None = Header(default=None, alias=ISSUER_HEADER_NAME),
+) -> str:
+    """Accept either the admin API key or the dashboard's issuer header."""
+    if x_issuer_address and x_issuer_address.strip():
+        return x_issuer_address.strip()
+    return await require_admin_api_key(x_api_key)

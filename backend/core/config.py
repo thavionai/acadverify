@@ -20,7 +20,10 @@ class Settings(BaseSettings):
 
     # --- chain-service (Midnight bridge) ---
     chain_service_url: str | None = None
-    chain_service_timeout_seconds: float = 10.0
+    # Issuance and revocation each prove for ~22s in live mode (measured);
+    # a 10s default silently broke every live call. Keep headroom for
+    # proof-server queueing on top of single-proof latency.
+    chain_service_timeout_seconds: float = 90.0
     chain_service_connect_timeout_seconds: float = 3.0
 
     # Issuer public key registered on-chain (64 hex chars). Issuance is
@@ -29,6 +32,14 @@ class Settings(BaseSettings):
 
     # --- verification URL construction ---
     verify_base_url: str = "https://verify.example.com"
+
+    # Comma-separated browser origins allowed to call the API (the Next.js
+    # dev server locally). Empty disables CORS entirely.
+    cors_origins: str = ""
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     admin_api_keys: str = ""
 

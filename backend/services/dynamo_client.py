@@ -37,6 +37,27 @@ def _model_to_item(model: CredentialIndexItem) -> dict:
     return model.model_dump(mode="json")
 
 
+async def scan_credentials() -> list[CredentialIndexItem]:
+    """Full-table scan for the issuer dashboard registry.
+
+    Fine at MVP/local scale; a deployment with real volume should page
+    through the university_id GSI instead.
+    """
+    try:
+        items: list[CredentialIndexItem] = []
+        kwargs: dict = {}
+        while True:
+            resp = _table.scan(**kwargs)
+            items.extend(_item_to_model(i) for i in resp.get("Items", []))
+            last_key = resp.get("LastEvaluatedKey")
+            if not last_key:
+                return items
+            kwargs["ExclusiveStartKey"] = last_key
+    except ClientError as exc:
+        logger.exception("DynamoDB scan failed")
+        raise DynamoClientError(str(exc)) from exc
+
+
 async def put_credential_index(item: CredentialIndexItem) -> CredentialIndexItem:
     """Create or fully overwrite a credential's index entry."""
     try:
