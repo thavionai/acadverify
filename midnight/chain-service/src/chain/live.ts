@@ -43,6 +43,36 @@ async function timed<T>(fn: () => Promise<T>): Promise<[T, number]> {
   return [await fn(), Date.now() - t0];
 }
 
+/**
+ * Wrap a `callTx.*` invocation (build -> prove -> balance -> submit) so any
+ * failure in that pipeline surfaces as the named, honest `PROOF_SERVICE_UNAVAILABLE`
+ * rather than falling through to a generic `500 INTERNAL`.
+ *
+ * This was a real gap, not a design choice: previously nothing here caught the
+ * raw SDK/network error a `callTx.*` call throws when the proof server is
+ * unreachable or a proving/submission step fails, so it propagated uncaught to
+ * the Express error middleware as an unnamed 500. That never accused a
+ * credential of being invalid (issue/revoke/authorize have no credential
+ * verdict to corrupt), but it also never told the caller — or anyone reading
+ * logs — what actually broke, which is the bar `chain-service-engineer.md`
+ * sets: "proof-server timeout is PROOF_SERVICE_UNAVAILABLE... surface honest
+ * errors."
+ *
+ * Any AppError thrown from inside `fn` (there shouldn't be one at these call
+ * sites today, but a future caller might add one) passes through unchanged —
+ * this only reclassifies UNEXPECTED failures, never overrides an intentional one.
+ */
+export async function submitTx<T>(logger: Logger, op: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    if (e instanceof AppError) throw e;
+    const message = e instanceof Error ? e.message : String(e);
+    logger.error({ op, cause: message }, "callTx failed");
+    throw new AppError("PROOF_SERVICE_UNAVAILABLE");
+  }
+}
+
 class LiveChainAdapter implements ChainAdapter {
   readonly mode = "live" as const;
   private readonly queue = new TxQueue();
@@ -134,7 +164,9 @@ class LiveChainAdapter implements ChainAdapter {
     return this.queue.run(async () => {
       await this.setWorkingSet(emptyWorkingSet(this.ownerSk));
       const pk = hexToBytes32(issuerPk, "issuerPk");
-      const res = await this.contract.callTx.authorizeIssuer(pk);
+      const res = await submitTx<any>(this.logger, "authorizeIssuer", () =>
+        this.contract.callTx.authorizeIssuer(pk),
+      );
       const blockHeight = await this.waitForState((l) => l.issuers.member(pk));
       return { txId: res.public.txId, blockHeight };
     });
@@ -159,7 +191,9 @@ class LiveChainAdapter implements ChainAdapter {
       const ps: AcadPrivateState = { secretKey: issuerSk, fields: witnessFields, salt };
       await this.setWorkingSet(ps);
 
-      const [res, provingMs] = await timed<any>(() => this.contract.callTx.issue(idBytes));
+      const [res, provingMs] = await timed<any>(() =>
+        submitTx(this.logger, "issue", () => this.contract.callTx.issue(idBytes)),
+      );
       const blockHeight = await this.waitForState((l) => l.credentials.member(idBytes));
 
       await this.vault.put(credentialId.trim().toUpperCase(), { fields: witnessFields, salt });
@@ -207,7 +241,9 @@ class LiveChainAdapter implements ChainAdapter {
       );
       await this.setWorkingSet(emptyWorkingSet(issuerSk));
 
-      const res = await this.contract.callTx.revokeCredential(idBytes);
+      const res = await submitTx<any>(this.logger, "revokeCredential", () =>
+        this.contract.callTx.revokeCredential(idBytes),
+      );
       const blockHeight = await this.waitForState((x) => x.revoked.member(idBytes));
       return { credentialId, txId: res.public.txId, blockHeight, revokedAt: new Date().toISOString() };
     });
