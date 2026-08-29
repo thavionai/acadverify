@@ -73,6 +73,11 @@ Thresholds are env vars on the `anomaly-detector` service — tune in the compos
 file. All signals are exported as Prometheus metrics (`acadverify_*`), so alert
 rules and dashboards stay in one system.
 
+> The detector runs as a non-root user. If you ran the stack before that change
+> and see `Permission denied` on `/data`, recreate the volume once:
+> `docker compose -p acadverify-obs rm -sf anomaly-detector && docker volume rm acadverify-obs_detector-data`
+> then `up -d` again (the blocklist starts empty either way).
+
 ## Security protection
 
 **Blocklist enforcement.** The detector writes offending IPs to the
