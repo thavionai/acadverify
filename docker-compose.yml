@@ -113,7 +113,6 @@ services:
     ports:
       - "8090:8090"
     environment:
-      CHAIN_MODE: mock
       CHAIN_SERVICE_PORT: 8090
       MIDNIGHT_NETWORK_ID: undeployed
       MIDNIGHT_NODE_URL: http://node:9944
@@ -122,8 +121,16 @@ services:
       MIDNIGHT_PROOF_SERVER_URL: http://proof-server:6300
       MIDNIGHT_ZK_CONFIG_PATH: ./managed/academic_credential
       MIDNIGHT_PRIVATE_STATE_PATH: /app/.private-state
-      # Demo-only tamper endpoint. MUST remain false in any deployed config.
-      ALLOW_DEBUG_ENDPOINTS: "false"
+      # Live mode only: the deployed contract (midnight/deployments/<net>.json,
+      # written by `npm run deploy`) and the wallet seed. Empty in mock mode.
+      CONTRACT_ADDRESS: "${CONTRACT_ADDRESS:-}"
+      MIDNIGHT_WALLET_SEED: "${MIDNIGHT_WALLET_SEED:-}"
+      # Demo-only tamper endpoint (the "forge" step of the demo storyline).
+      # Interpolated from .env so local demos can enable it; MUST remain
+      # false in any deployed config.
+      ALLOW_DEBUG_ENDPOINTS: "${ALLOW_DEBUG_ENDPOINTS:-false}"
+      # live mode needs the chain-service to reach the devnet by service name.
+      CHAIN_MODE: "${CHAIN_MODE:-mock}"
     depends_on:
       - node
       - indexer
@@ -132,21 +139,23 @@ services:
       # Witness data (credential fields + salts). Lost => those credentials can
       # never be proven again. See docs/data-model.md.
       - private-state:/app/.private-state
+      # midnight-js levelPrivateStateProvider store — same durability rules.
+      - private-state-db:/app/midnight-level-db
 
-  # backend:
-  #   build: ./backend
-  #   ports:
-  #     - "8080:8080"
-  #   env_file: .env
-  #   environment:
-  #     DYNAMODB_ENDPOINT: http://dynamodb:8000
-  #     S3_ENDPOINT: http://minio:9000
-  #     CHAIN_SERVICE_URL: http://chain-service:8090
-  #   depends_on:
-  #     - dynamodb
-  #     - minio
-  #   volumes:
-  #     - ./backend:/app
+  backend:
+      build: ./backend
+      ports:
+        - "8080:8080"
+      env_file: .env
+      environment:
+        DYNAMODB_ENDPOINT_URL: http://dynamodb:8000
+        S3_ENDPOINT: http://minio:9000
+        CHAIN_SERVICE_URL: http://chain-service:8090
+      depends_on:
+        - dynamodb
+        - minio
+      volumes:
+        - ./backend:/app
 
   # frontend:
   #   build: ./frontend
@@ -162,3 +171,4 @@ volumes:
   dynamodb-data:
   minio-data:
   private-state:
+  private-state-db:
