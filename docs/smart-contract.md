@@ -81,7 +81,7 @@ records `proveCredential`'s result type as exactly these four fields.
 |---|---|---|
 | `authorizeIssuer(issuerPk)` | platform owner | adds a university to `issuers` |
 | `issue(credentialId)` | authorized issuer | writes `credentialId -> commitment` |
-| `revokeCredential(credentialId)` | authorized issuer | adds to `revoked` |
+| `revokeCredential(credentialId)` | the credential's actual issuer | adds to `revoked` |
 | `proveCredential(credentialId, revealGpa)` | holder / platform | returns `DisclosedClaim` |
 
 ### Issuance
@@ -110,6 +110,37 @@ The credential fields enter the circuit as witness data and leave as a single
 32-byte commitment. `persistentCommit` clears witness taint, which is why the
 commitment can be written to the ledger without a `disclose()` wrapper — the
 compiler has proven the value cryptographically hides its input.
+
+### Revocation
+
+```compact
+export circuit revokeCredential(credentialId: Bytes<32>): [] {
+  const pk = publicKey(localSecretKey());
+  const fields = credentialFields();
+  const commitment = persistentCommit<CredentialData>(fields, credentialSalt());
+  assert(issuers.member(disclose(pk)), "issuer not authorized");
+  assert(credentials.member(disclose(credentialId)), "unknown credential");
+  assert(credentials.lookup(disclose(credentialId)) == commitment, "commitment mismatch");
+  assert(fields.issuerPk == pk, "issuer key mismatch");
+  revoked.insert(disclose(credentialId));
+}
+```
+
+The commitment-match and `fields.issuerPk == pk` asserts are load-bearing and
+were **missing in the first version** — the same bug class as `issue()`'s
+`issuer key mismatch` check above, one circuit over. Without them,
+`revokeCredential` checked only that the *caller* was *some* authorized
+issuer, never that the caller was *this credential's* actual issuer. Since two
+universities are both simply "an authorized issuer", University A could revoke
+University B's credentials at will. Requiring the caller's witness fields+salt
+to recompute the exact stored commitment is what proves they hold *this
+specific* credential's data, not just any credential's. Regression test:
+`test/contract/adversarial.test.ts` → `describe("revocation authority")`.
+
+This also means the chain-service can no longer call `revokeCredential` with
+an empty/zeroed working set — it must load the real vault entry for the
+credential being revoked first, exactly as `proveCredential` already does
+(see `midnight/chain-service/src/chain/live.ts`).
 
 ### Verification — the money shot
 
@@ -203,7 +234,8 @@ verification is unlinkable.
 - Happy path: authorize → issue → prove → revoke → prove fails.
 - Adversarial: unauthorized issuer; duplicate ID; **wrong witness data (proof
   generation must fail, not return a bad result)**; revoked credential; unknown
-  ID.
+  ID; **an authorized issuer attempting to revoke a DIFFERENT issuer's
+  credential** (must fail — see "Revocation" above).
 - Disclosure: assert `revealGpa: false` yields `gpaTimes100 == 0` and that
   `studentId` appears nowhere in the transcript.
 - Regression: `contract-info.json` is committed, and any change to a circuit's

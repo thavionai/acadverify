@@ -79,8 +79,9 @@ cp .env.example .env
 docker compose up -d
 
 # 5. Build the contract
-compact compile midnight/contracts/academic_credential.compact \
-                midnight/contracts/managed/academic_credential
+cd midnight/chain-service && npm run compact
+# = compact compile +0.31.1 ../contracts/academic_credential.compact \
+#                          ./managed/academic_credential
 ```
 
 Full details, including troubleshooting: [docs/local-setup.md](docs/local-setup.md).

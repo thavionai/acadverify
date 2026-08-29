@@ -69,6 +69,39 @@ describe("duplicate prevention", () => {
   });
 });
 
+describe("revocation authority", () => {
+  /**
+   * REGRESSION — same bug class as "issuer key mismatch" above, found in the
+   * sibling circuit.
+   *
+   * revokeCredential previously checked only that the CALLER was SOME
+   * authorized issuer, never that the caller was THIS credential's actual
+   * issuer. Since any two universities are both "an authorized issuer", one
+   * could revoke the other's credentials at will. The fix requires the
+   * caller's witness fields+salt to recompute the exact on-chain commitment
+   * (proving they hold this specific credential's data) and that
+   * fields.issuerPk matches the calling key.
+   */
+  it("forbids an authorized issuer from revoking a DIFFERENT issuer's credential", async () => {
+    await sim.as({ secretKey: OWNER_SK }).call("authorizeIssuer", otherIssuerPk());
+    await sim.as(issuerSet()).call("issue", CRED_ID);
+
+    // OTHER_ISSUER_SK is authorized on-chain, but never issued CRED_ID and
+    // supplies no matching witness data for it.
+    await expect(
+      sim.as({ secretKey: OTHER_ISSUER_SK }).call("revokeCredential", CRED_ID),
+    ).rejects.toThrow(/commitment mismatch|issuer key mismatch/);
+
+    expect((sim.ledger() as any).revoked.member(CRED_ID)).toBe(false);
+  });
+
+  it("still allows the actual issuer to revoke their own credential", async () => {
+    await sim.as(issuerSet()).call("issue", CRED_ID);
+    await sim.as(issuerSet()).call("revokeCredential", CRED_ID);
+    expect((sim.ledger() as any).revoked.member(CRED_ID)).toBe(true);
+  });
+});
+
 describe("forgery is unprovable, not merely detected", () => {
   /**
    * The central claim of the product. A tampered credential does not produce a
