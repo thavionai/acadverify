@@ -139,6 +139,8 @@ services:
       # Witness data (credential fields + salts). Lost => those credentials can
       # never be proven again. See docs/data-model.md.
       - private-state:/app/.private-state
+      # midnight-js levelPrivateStateProvider store — same durability rules.
+      - private-state-db:/app/midnight-level-db
 
   backend:
       build: ./backend
@@ -169,3 +171,4 @@ volumes:
   dynamodb-data:
   minio-data:
   private-state:
+  private-state-db:

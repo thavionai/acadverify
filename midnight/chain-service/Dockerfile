@@ -43,7 +43,12 @@ ENV NODE_ENV=production \
 # Run as the node user the base image ships (container-escape hardening;
 # Trivy DS-0002). .private-state is created here with the right owner so the
 # named volume mounted there inherits writable ownership on first use.
-RUN mkdir -p /app/.private-state && chown -R node:node /app/.private-state
+# midnight-level-db is where midnight-js's levelPrivateStateProvider puts its
+# store (privateStateStoreName is a store NAME resolved under ./midnight-level-db,
+# not a path) — without ownership here, live mode dies at boot with
+# "Database failed to open" under the non-root user.
+RUN mkdir -p /app/.private-state /app/midnight-level-db \
+    && chown -R node:node /app/.private-state /app/midnight-level-db
 USER node
 
 EXPOSE 8090
