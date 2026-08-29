@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { PublicNav } from "@/components/public/public-nav";
 import { ScrollReveal } from "@/components/public/scroll-reveal";
+import { ProblemPanels } from "@/components/public/problem-panels";
 import {
   IconArrowRight,
   IconCheck,
@@ -17,25 +18,6 @@ import {
    planned rather than implied — the same standard applied when the "Midnight
    Testnet" and "IPFS" claims were removed from the product UI.
 --------------------------------------------------------------------------- */
-
-const FRAUD_STATS = [
-  {
-    figure: "1 in 3",
-    label: "job applicants",
-    detail: "admit to misrepresenting their academic credentials.",
-  },
-  {
-    figure: "$21B",
-    label: "global industry",
-    detail: "is the estimated scale of commercial academic fraud.",
-  },
-  {
-    figure: "+244%",
-    label: "in a single year",
-    detail:
-      "growth in digital diploma forgery, now 57% of all document fraud (2024).",
-  },
-];
 
 const HOW_IT_WORKS = [
   {
@@ -181,42 +163,29 @@ export default function Home() {
         <ScrollReveal />
 
         {/* ---------------------------------------------------------------
-            The problem — part one: forgery is industrialised
+            The problem, in the order the three parts compound. The headline
+            names all three; each panel below argues one of them.
         --------------------------------------------------------------- */}
-        <section className="border-t border-paper/10 px-5 py-24 sm:px-8">
+        <section className="border-t border-paper/10 px-5 pb-16 pt-24 sm:px-8">
           <div className="mx-auto max-w-6xl">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-500">
               The problem
             </p>
-            <h2 className="mt-4 max-w-3xl text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
-              Faking a degree got easy. Checking one never did.
+            <h2 className="mt-5 max-w-4xl text-balance text-3xl font-semibold leading-[1.1] tracking-tight sm:text-6xl">
+              The fake is cheap.
+              <span className="block">The check is slow.</span>
+              <span className="block text-gold-400">
+                The honest route leaks.
+              </span>
             </h2>
-            <p className="mt-5 max-w-2xl text-pretty text-lg text-paper-dim">
-              Forgery used to need a printing press. It now needs a prompt —
-              and it is sold by subscription. Verification did not keep up: it
-              is still a person emailing a registrar and waiting days for a
-              reply. Fraud scaled. The check against it did not.
+            <p className="mt-6 max-w-2xl text-pretty text-lg text-paper-dim">
+              Three separate failures, and a graduate has to live inside all of
+              them at once.
             </p>
-
-            <dl className="mt-14 grid gap-px overflow-hidden rounded-lg border border-paper/15 bg-paper/15 sm:grid-cols-3">
-              {FRAUD_STATS.map((stat) => (
-                <div key={stat.figure} className="bg-ink-950 p-8">
-                  <dt className="font-mono text-4xl font-semibold text-gold-400 sm:text-5xl">
-                    {stat.figure}
-                  </dt>
-                  <dd className="mt-3">
-                    <span className="block text-sm font-semibold uppercase tracking-wider text-paper">
-                      {stat.label}
-                    </span>
-                    <span className="mt-1 block text-sm leading-relaxed text-paper-muted">
-                      {stat.detail}
-                    </span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
           </div>
         </section>
+
+        <ProblemPanels />
 
         {/* ---------------------------------------------------------------
             The problem — part two: the over-disclosure tax
@@ -447,12 +416,17 @@ export default function Home() {
             </nav>
           </div>
 
-          {/* Sourced so the figures above are checkable rather than asserted. */}
+          {/* Every figure on this page is attributed here so it can be
+              checked rather than taken on trust. A previous version credited an
+              applicant-misrepresentation statistic to a source that does not
+              contain it; that figure has been removed rather than re-sourced. */}
           <p className="mt-10 border-t border-paper/10 pt-6 text-xs leading-relaxed text-paper-muted">
-            Fraud figures: applicant misrepresentation and the $21B industry
-            estimate via Parchment&apos;s analysis of diploma mills and academic
-            fraud; digital forgery growth via 2024 document-fraud reporting.
-            Prototype built for the MLH Midnight Hackathon.
+            Sources — $49: fake-diploma vendor pricing, observed directly,
+            August 2026. 5&ndash;10 business days: education-verification
+            turnaround per iprospectcheck and Vertical Identity. 62 million:
+            the PowerSchool breach disclosed in January 2025, reported by
+            BleepingComputer and NBC News. Prototype built for the MLH Midnight
+            Hackathon.
           </p>
         </div>
       </footer>

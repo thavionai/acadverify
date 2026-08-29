@@ -38,8 +38,14 @@ scrolls, so they are not independent images:
 - Hero / full-bleed: **2400px** on the long edge is plenty, even for retina.
   Larger is wasted bytes.
 - Section illustrations: **1200px** long edge.
-- Keep any single image **under ~500KB** after conversion. The whole page budget
-  matters more than any one asset.
+- Keep any single image **under ~500KB** *as delivered*. `next/image` re-encodes
+  and resizes, so the file in this folder is a build input, not what ships —
+  a 1MB source at 2752px can serve a 380KB derivative. Measure the derivative
+  (DevTools → Network, filter `_next/image`), not the file on disk.
+- Heavily textured art (charcoal, impasto, film grain) compresses badly and will
+  sit above the cap at any quality worth shipping. That is fine for full-bleed
+  artwork below the fold, which loads lazily; it is not fine above the fold.
+- The whole page budget matters more than any one asset.
 
 ## Naming
 
