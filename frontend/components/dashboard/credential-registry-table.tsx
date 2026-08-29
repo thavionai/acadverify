@@ -41,13 +41,28 @@ export function CredentialRegistryTable() {
       search: debouncedSearch,
       status: statusFilter,
       signal: controller.signal,
-    }).then((result) => {
-      if (result.ok) {
-        setLoadState({ status: "loaded", items: result.data.items });
-      } else {
-        setLoadState({ status: "error", message: result.error.message });
-      }
-    });
+    })
+      .then((result) => {
+        if (result.ok) {
+          setLoadState({ status: "loaded", items: result.data.items });
+        } else {
+          setLoadState({ status: "error", message: result.error.message });
+        }
+      })
+      .catch((error) => {
+        // The cleanup below aborts any in-flight request, and lib/api.ts
+        // deliberately re-throws AbortError. Without this catch every search
+        // keystroke, filter change, and navigation away logged an unhandled
+        // rejection. An abort is us cancelling our own request — not an error
+        // the user should ever see. Same handling as verify-result.tsx.
+        if (error instanceof DOMException && error.name === "AbortError") return;
+
+        setLoadState({
+          status: "error",
+          message:
+            "The credential registry could not be loaded. This is a service issue, not a problem with any credential.",
+        });
+      });
 
     return () => controller.abort();
   }, [wallet, debouncedSearch, statusFilter]);
@@ -163,13 +178,18 @@ export function CredentialRegistryTable() {
                       <p className="font-semibold text-slate-950">{item.studentName}</p>
                       <p className="text-slate-600">{item.degree}</p>
                     </td>
+                    {/* The credential id — the value that actually resolves at
+                        /verify/<id>. This column previously rendered and copied
+                        the issuance transaction id, so anyone who copied it (or
+                        hand-typed what they saw) got a not-found page. Every
+                        other control in this row already keys off item.id. */}
                     <td className="px-5 py-4 align-top">
                       <div className="flex items-center gap-2">
                         <span className="font-mono text-slate-800">
-                          {truncateMiddle(item.commitmentHash, 6)}
+                          {truncateMiddle(item.id, 6)}
                         </span>
                         <CopyButton
-                          text={item.commitmentHash}
+                          text={item.id}
                           label="Copy"
                           className="min-h-8 px-2 py-1 text-xs"
                         />

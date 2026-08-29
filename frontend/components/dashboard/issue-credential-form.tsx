@@ -38,9 +38,14 @@ const FIELD_CONFIG: Array<{
   { key: "gpa", label: "Cumulative GPA", type: "text", required: true, placeholder: "3.95", inputMode: "decimal" },
 ];
 
+// These are elapsed-time labels, not real progress events — the API is a single
+// request and reports no intermediate state. They must therefore only describe
+// steps that genuinely happen. The first previously read "Uploading credential
+// metadata to IPFS"; there is no IPFS anywhere in this system (portal.py returns
+// an empty metadataCid), so it announced work that never occurred.
 const ISSUE_PHASES = [
-  { label: "Uploading credential metadata to IPFS", afterMs: 0 },
-  { label: "Generating the zero-knowledge commitment", afterMs: 2200 },
+  { label: "Preparing the credential commitment", afterMs: 0 },
+  { label: "Generating the zero-knowledge proof", afterMs: 2200 },
   { label: "Submitting the transaction to Midnight", afterMs: 5500 },
 ];
 
@@ -187,7 +192,7 @@ export function IssueCredentialForm() {
                   />
                   <span
                     aria-hidden
-                    title={isHashed ? "Hashed on-chain" : "Public IPFS metadata"}
+                    title={isHashed ? "Hashed into the on-chain commitment" : "Stored off-chain, not on the ledger"}
                     className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
                   >
                     {isHashed ? (
@@ -204,12 +209,12 @@ export function IssueCredentialForm() {
 
         <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-4 text-xs text-slate-500">
           <span className="flex items-center gap-1.5">
-            <IconLock className="h-3.5 w-3.5" aria-hidden /> Hashed on-chain
-            (private)
+            <IconLock className="h-3.5 w-3.5" aria-hidden /> Hashed into the
+            on-chain commitment
           </span>
           <span className="flex items-center gap-1.5">
-            <IconGlobe className="h-3.5 w-3.5" aria-hidden /> Public IPFS
-            metadata
+            <IconGlobe className="h-3.5 w-3.5" aria-hidden /> Stored off-chain,
+            not on the ledger
           </span>
         </div>
 
@@ -321,9 +326,28 @@ function IssueSuccess({
       </p>
       <h2 className="mt-2 text-2xl font-semibold text-slate-950">Ready to share</h2>
       <p className="mt-2 text-sm text-slate-600">
-        Print or send the link below to the student. A QR code can be generated
-        from this same URL at print time.
+        Print or send this to the student. Scanning the QR code opens the public
+        verification page for this credential.
       </p>
+
+      {/* The backend generates and stores a real QR PNG at issue time and
+          returns its URL; it simply was never rendered, so the issuer could
+          only copy a link and the issue -> certificate -> scan path could not
+          be completed from the UI at all. */}
+      {credential.qrCodeUrl ? (
+        <div className="mt-5 flex justify-center rounded-md border border-slate-200 p-4">
+          {/* Plain <img>, not next/image: this is a runtime-generated URL on a
+              storage host that is not in the Next image config. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={credential.qrCodeUrl}
+            alt={`QR code linking to the public verification page for credential ${credential.id}`}
+            width={192}
+            height={192}
+            className="h-48 w-48"
+          />
+        </div>
+      ) : null}
 
       <dl className="mt-5 grid gap-4 rounded-md border border-slate-200 p-4 sm:grid-cols-2">
         <div>
@@ -346,14 +370,19 @@ function IssueSuccess({
           </dt>
           <dd className="mt-1 break-all font-mono text-sm text-slate-950">{credential.txId}</dd>
         </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-            Metadata CID
-          </dt>
-          <dd className="mt-1 break-all font-mono text-sm text-slate-950">
-            {credential.metadataCid}
-          </dd>
-        </div>
+        {/* Only render when there is actually a CID. This build has no IPFS,
+            so the backend always returns "" and the row rendered as a label
+            with nothing under it — which reads as broken rather than absent. */}
+        {credential.metadataCid ? (
+          <div>
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+              Metadata CID
+            </dt>
+            <dd className="mt-1 break-all font-mono text-sm text-slate-950">
+              {credential.metadataCid}
+            </dd>
+          </div>
+        ) : null}
       </dl>
 
       <div className="mt-4 flex flex-col gap-2 rounded-md border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">

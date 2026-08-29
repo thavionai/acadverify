@@ -11,10 +11,13 @@ Error responses here use the spec's envelope — {"error": {"code", "message"}}
 """
 from __future__ import annotations
 
+import json
 import logging
+import os
 import secrets
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
@@ -67,6 +70,17 @@ async def verify_credential_public(credential_id: str, request: Request, disclos
         credential_id,
     )
 
+    # `disclosed` is null whenever the proof did not succeed — the circuit
+    # aborts before producing a DisclosedClaim, for REVOKED *and* INVALID_PROOF
+    # alike. Treating that as an empty dict and then filling `.get(key, 0)`
+    # defaults fabricated data: a revoked or forged credential rendered
+    # "Degree Code 0 / Graduation Year 0" under the heading "Disclosed Fields",
+    # beside a genuine institution and degree pulled from the off-chain index.
+    #
+    # Absent is not zero. Emit None so the UI can say "not disclosed", matching
+    # the convention this codebase already states in chain-service's mock.ts
+    # ("null, never 0 — driven by consent, not by the value") and that line 87
+    # below already follows for gpa.
     raw_disclosed = raw.get("disclosed") or {}
     evidence = raw.get("evidence") or {}
     proof = raw.get("proof") or {}
@@ -74,18 +88,35 @@ async def verify_credential_public(credential_id: str, request: Request, disclos
     checked_at = evidence.get("checkedAt", datetime.now(timezone.utc).isoformat())
     tx_id = evidence.get("issuanceTxId", "")
 
+    disclosed = {
+        # Human-readable names come from the off-chain index; the chain
+        # only ever sees opaque digests (see chain_service_client._hex32).
+        "institution": index_entry.university_id,
+        "institutionId": raw_disclosed.get("institutionId") or None,
+        "degree": index_entry.credential_type or "",
+        "degreeCode": raw_disclosed.get("degreeCode"),
+        "graduationYear": raw_disclosed.get("graduationYear"),
+        "gpa": (gpa_times_100 / 100) if gpa_times_100 is not None else None,
+    }
+
+    # Invariant: every chain-disclosable field appears in exactly one of
+    # `disclosed` (with a real value) or `withheld`.
+    #
+    # chain-service derives `withheld` from CONSENT alone, independent of
+    # status, while gating `disclosed` on the proof succeeding. On a revoked
+    # credential where the holder *had* consented to GPA, that left gpa in
+    # neither list: null in `disclosed`, absent from `withheld` — silently
+    # unaccounted for. Since "what was withheld" is the core privacy claim we
+    # show the verifier, a field vanishing from both sides undermines it.
+    #
+    # Note `is None` rather than falsiness: a real 0.00 GPA is disclosed data.
+    chain_disclosable = ("institutionId", "degreeCode", "graduationYear", "gpa")
+    undisclosed = {key for key in chain_disclosable if disclosed[key] is None}
+    withheld = sorted(set(raw.get("withheld") or []) | undisclosed)
+
     return {
         "status": chain_status,
-        "disclosed": {
-            # Human-readable names come from the off-chain index; the chain
-            # only ever sees opaque digests (see chain_service_client._hex32).
-            "institution": index_entry.university_id,
-            "institutionId": raw_disclosed.get("institutionId", ""),
-            "degree": index_entry.credential_type or "",
-            "degreeCode": raw_disclosed.get("degreeCode", 0),
-            "graduationYear": raw_disclosed.get("graduationYear", 0),
-            "gpa": (gpa_times_100 / 100) if gpa_times_100 is not None else None,
-        },
+        "disclosed": disclosed,
         "proof": {
             "verified": proof.get("verified", chain_status == "VALID"),
             "issuerAuthorized": chain_status != "INVALID_PROOF",
@@ -99,7 +130,7 @@ async def verify_credential_public(credential_id: str, request: Request, disclos
             "checkedAt": checked_at,
             "provedAt": checked_at,
         },
-        "withheld": raw.get("withheld") or [],
+        "withheld": withheld,
     }
 
 
@@ -213,7 +244,14 @@ async def list_credentials(
             continue
         out.append({
             "id": item.credential_id,
-            "commitmentHash": item.chain_proof_ref or "",
+            # This is the issuance TRANSACTION id, not a commitment: the index
+            # stores chain_proof_ref (see POST /credentials, which returns the
+            # real commitment under `commitmentHash` and this value under
+            # `txId`). The two endpoints previously used the same field name
+            # for two different things, and the dashboard rendered this one
+            # under a "Credential ID" heading — so the value a user copied was
+            # neither a credential id nor a commitment.
+            "txId": item.chain_proof_ref or "",
             # Student identity is deliberately absent from the index
             # (docs/data-model.md) — the dashboard renders these blank.
             "studentName": "",
@@ -234,11 +272,22 @@ async def download_certificate(credential_id: str, issuer: str = Depends(require
 
 # ---------------------------------------------------------------------------
 # Institutions onboarding — demo-grade stub, keyed by issuer address.
-# Not in docs/api-spec.md; exists because the dashboard settings page calls
-# it. In-memory only: state resets on backend restart, which is fine locally.
+# Not in docs/api-spec.md; exists because the dashboard settings page calls it.
+#
+# Persisted to a small JSON file rather than kept purely in memory: an
+# unauthorized profile hard-locks the dashboard's issue form, so a plain
+# backend restart used to silently send the operator back through the setup
+# wizard mid-QA (or mid-demo) with no indication of why the form had re-locked.
+# The file lives under the bind-mounted backend directory, so it survives both
+# `uvicorn --reload` and `docker compose restart backend`.
+#
+# Still demo-grade: PUT approves instantly with no on-chain authorizeIssuer
+# call, and there is no locking, so this is not safe for concurrent writers.
 # ---------------------------------------------------------------------------
 
-_institution_profiles: dict[str, dict] = {}
+_PROFILE_STORE_PATH = Path(
+    os.environ.get("INSTITUTION_STORE_PATH", ".institution-profiles.json")
+)
 
 _DEFAULT_PROFILE = {
     "name": "",
@@ -247,6 +296,33 @@ _DEFAULT_PROFILE = {
     "country": "",
     "status": "NOT_REGISTERED",
 }
+
+
+def _load_profiles() -> dict[str, dict]:
+    try:
+        with _PROFILE_STORE_PATH.open(encoding="utf-8") as handle:
+            data = json.load(handle)
+        return data if isinstance(data, dict) else {}
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError):
+        # A corrupt or unreadable store must not take the API down — an issuer
+        # re-running the setup wizard is a far better failure than a 500.
+        logger.warning("Institution profile store unreadable; starting empty", exc_info=True)
+        return {}
+
+
+def _save_profiles(profiles: dict[str, dict]) -> None:
+    try:
+        _PROFILE_STORE_PATH.write_text(json.dumps(profiles, indent=2), encoding="utf-8")
+    except OSError:
+        # Persistence is a convenience here, not a correctness requirement:
+        # the in-request response is already correct, so degrade to
+        # this-process-only rather than failing the caller's request.
+        logger.warning("Could not persist institution profile store", exc_info=True)
+
+
+_institution_profiles: dict[str, dict] = _load_profiles()
 
 
 class InstitutionProfileInput(BaseModel):
@@ -277,4 +353,5 @@ async def save_institution_profile(
         "submittedAt": datetime.now(timezone.utc).isoformat(),
     }
     _institution_profiles[issuer] = profile
+    _save_profiles(_institution_profiles)
     return profile

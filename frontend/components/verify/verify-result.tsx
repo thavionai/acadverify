@@ -221,21 +221,47 @@ function VerifiedContent({ result }: { result: VerificationResult }) {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <FieldPanel title="Disclosed Fields">
-          <dl className="space-y-3">
-            {Object.entries(result.disclosed).map(([key, value]) => (
-              <div
-                key={key}
-                className="flex flex-col gap-1 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0"
-              >
-                <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  {formatLabel(key)}
-                </dt>
-                <dd className="break-words text-base font-medium text-slate-950">
-                  {value === null || value === "" ? "Not disclosed" : value}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          {/* Show ONLY fields that were actually disclosed. A null/empty value
+              means the field was not disclosed, and the API already lists it in
+              `withheld` — rendering it here too put the same field in both
+              panels at once ("GPA — Not disclosed" on the left beside a "Gpa"
+              chip on the right). "What was withheld" is the core privacy claim
+              this page makes, so the two panels must not disagree.
+
+              Note the explicit null/undefined/"" test rather than a falsy
+              check: a real 0 is disclosed data (a 0.00 GPA is a fact, not an
+              absence) and must still render. */}
+          {(() => {
+            const disclosedEntries = Object.entries(result.disclosed).filter(
+              ([, value]) => value !== null && value !== undefined && value !== "",
+            );
+
+            if (disclosedEntries.length === 0) {
+              return (
+                <p className="text-sm text-slate-600">
+                  No fields were disclosed for this verification.
+                </p>
+              );
+            }
+
+            return (
+              <dl className="space-y-3">
+                {disclosedEntries.map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex flex-col gap-1 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0"
+                  >
+                    <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                      {formatLabel(key)}
+                    </dt>
+                    <dd className="break-words text-base font-medium text-slate-950">
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            );
+          })()}
         </FieldPanel>
 
         <FieldPanel title="Withheld Fields">

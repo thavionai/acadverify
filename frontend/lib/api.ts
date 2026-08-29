@@ -153,7 +153,14 @@ export async function downloadCertificate(
     const objectUrl = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = objectUrl;
-    anchor.download = `${credential.studentName.replace(/\s+/g, "-").toLowerCase()}-certificate.pdf`;
+    // studentName is empty for every registry row (the index never stores
+    // identity), and `.replace` on an absent value throws inside this try —
+    // surfacing as the generic "certificate could not be downloaded" and
+    // hiding the real cause. Fall back to the credential id, which always
+    // exists and makes a more useful filename anyway.
+    const filenameStem =
+      credential.studentName?.trim().replace(/\s+/g, "-").toLowerCase() || credential.id;
+    anchor.download = `${filenameStem}-certificate.pdf`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();

@@ -16,10 +16,14 @@ export type ApiErrorCode =
 
 export type DisclosedCredentialFields = {
   institution: string;
-  institutionId: string;
   degree: string;
-  degreeCode: number;
-  graduationYear: number;
+  // Chain-disclosed fields are null whenever the proof did not succeed
+  // (REVOKED or INVALID_PROOF disclose nothing at all). Anything null here is
+  // listed in `withheld` instead — the two are mutually exclusive, so never
+  // render a null value as if it were disclosed data.
+  institutionId: string | null;
+  degreeCode: number | null;
+  graduationYear: number | null;
   gpa: string | number | null;
 };
 
@@ -75,7 +79,12 @@ export type WalletConnection = {
 
 export type CredentialListItem = {
   id: string;
-  commitmentHash: string;
+  // The ISSUANCE transaction id. Named `commitmentHash` before, which is what
+  // POST /credentials calls a genuinely different value — the index never
+  // stores a commitment at all.
+  txId: string;
+  // Deliberately empty: the off-chain index never stores student identity
+  // (docs/data-model.md), so the registry cannot display it.
   studentName: string;
   studentId: string;
   degree: string;
@@ -120,9 +129,14 @@ export const ON_CHAIN_HASHED_FIELDS: ReadonlyArray<keyof IssueCredentialInput> =
 export type IssuedCredential = {
   id: string;
   commitmentHash: string;
+  // Always "" in this build — there is no IPFS here (see portal.py). The
+  // success screen hides the field rather than rendering an empty row.
   metadataCid: string;
   txId: string;
   verifyUrl: string;
+  // The backend already renders and stores a real QR PNG; it just was not
+  // being displayed, leaving the issue -> certificate -> scan path unfinished.
+  qrCodeUrl: string;
 };
 
 export type RevokeCredentialResult = {

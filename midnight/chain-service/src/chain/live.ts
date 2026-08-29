@@ -291,7 +291,13 @@ class LiveChainAdapter implements ChainAdapter {
     return {
       status,
       disclosed,
-      withheld: ["studentId", ...(revealGpa ? [] : ["gpa"])],
+      // Whatever was not disclosed was withheld. Deriving this from consent
+      // alone under-reported on a failed proof (where `disclosed` is null and
+      // therefore NOTHING was disclosed), leaving a consented-to gpa in neither
+      // list. Keep the two mutually exclusive and jointly exhaustive.
+      withheld: disclosed
+        ? ["studentId", ...(revealGpa ? [] : ["gpa"])]
+        : ["studentId", "gpa", "institutionId", "degreeCode", "graduationYear"],
       evidence: {
         contractAddress: this.contractAddress,
         networkId: this.config.MIDNIGHT_NETWORK_ID,
