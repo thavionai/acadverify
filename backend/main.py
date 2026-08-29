@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from core.blocklist import register_blocklist_middleware
 from core.error_handlers import register_error_handlers
 from routers import issue, revoke, verify
 from services import chain_service_client
@@ -29,6 +30,7 @@ app = FastAPI(
 )
 
 register_error_handlers(app)
+register_blocklist_middleware(app)
 
 app.include_router(issue.router)
 app.include_router(revoke.router)

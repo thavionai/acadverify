@@ -1,10 +1,3 @@
-"""
-Application configuration.
-
-All values are pulled from environment variables so the same image can be
-deployed to dev/staging/prod without code changes. Nothing sensitive (API
-keys, AWS credentials) should ever have a hardcoded default here.
-"""
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -33,6 +26,10 @@ class Settings(BaseSettings):
     @property
     def admin_api_key_set(self) -> set[str]:
         return {k.strip() for k in self.admin_api_keys.split(",") if k.strip()}
+
+    blocklist_file_path: str = "/data/blocklist.json"
+
+    trust_x_forwarded_for: bool = False
 
 
 @lru_cache
