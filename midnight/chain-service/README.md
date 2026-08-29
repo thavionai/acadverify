@@ -17,6 +17,39 @@ fixtures. When live wiring lands, the mode flips and **nothing on your side
 changes** — mock and live are two implementations of one interface behind the
 same routes, schemas, and error mapping.
 
+## Live mode against the local devnet (working now)
+
+```bash
+docker compose up -d node indexer proof-server   # the three Midnight services
+npm run deploy      # deploys the contract, writes ../deployments/undeployed.json
+CHAIN_MODE=live npm start
+npm run smoke        # adapter-level lifecycle check, 11/11
+npm run smoke:http    # the same, but over real HTTP — 13/13
+```
+
+## For the blockchain-engineer teammate: deploying to `preview`
+
+Deploying to `preview` is **your** step, not this service's — see
+`docs/roles/blockchain-engineer.md`. This package owns the *mechanism*
+(`deploy.ts`, the six providers); it works unchanged for `preview`, only the
+network and a funded wallet differ:
+
+1. Get **tDUST** from the Midnight Preview faucet into a wallet address you
+   control. See `docs/midnight-stack.md` §7 for the wallet/network background.
+2. Set `MIDNIGHT_NETWORK_ID=preview` and `MIDNIGHT_WALLET_SEED=<your funded seed>`
+   (never the local devnet's public genesis seed — see `src/keys.ts`).
+3. Run `npm run deploy` from this directory, same as local devnet. It writes
+   `midnight/deployments/preview.json`, and authorizes one demo issuer.
+4. `npm run authorize -- <institutionId>` onboards any additional university
+   onto that deployment without redeploying.
+5. Run `npm run smoke` against it before calling it done — this exercises the
+   real lifecycle (issue → verify → forge → revoke), not just a successful
+   deploy.
+
+Everything else — the HTTP API, error semantics, disclosure behavior — is
+identical to local devnet. Nothing in FastAPI or the frontend needs to know
+which network it's talking to.
+
 ## Endpoints
 
 | Method | Path | Purpose |
@@ -68,3 +101,78 @@ about the credential.
 - `proof.issuanceTxId` refers to **issuance**. Verification does not submit a
   transaction — publishing a verification would publish the disclosure. See
   `docs/api-spec.md`.
+
+## Vault backup / restore
+
+The witness vault (credential fields + salts) is the one genuinely unrecoverable
+piece of state in this system — see `docs/data-model.md`. Back it up:
+
+```bash
+npm run vault:export -- <passphrase> <outfile>   # AES-256-GCM encrypted, mode 0600
+npm run vault:import -- <passphrase> <infile>    # restores into MIDNIGHT_PRIVATE_STATE_PATH
+```
+
+A wrong passphrase fails loudly (the GCM auth check) rather than importing
+garbage. `test/vault/backup.test.ts` proves a full export → fresh vault → import
+round trip is byte-identical, and that no credential field or salt is ever
+written to the backup file in plaintext.
+
+**Found while building this**, worth knowing: `Vault.get()` on a genuinely
+never-written key used to crash instead of returning `null`, because the
+installed `level` package resolves `db.get()` to `undefined` for a missing key
+rather than throwing — the only case the original code handled. This is the
+exact path `live.ts`'s `prove()` takes after a wiped private-state volume,
+so it had real consequences: instead of the documented `503
+PROOF_MATERIAL_UNAVAILABLE`, a wiped volume would have produced an uncaught
+crash. Fixed and regression-tested directly in `test/vault/store.test.ts`.
+
+## Cut: the detachable ZK proof bundle (`proof.level: "zk-verified"`)
+
+`ProveResult.proof.level` is typed as `"circuit-checked" | "zk-verified"`, but
+every response today returns `"circuit-checked"` — nothing produces the second
+value. This was an attempted stretch feature: verify a proof independently via
+`@midnight-ntwrk/zkir-v2`'s `check()`, so a judge could take a bundle and check
+it without trusting this service at all.
+
+**Spiked and cut**, not abandoned by neglect — here's exactly where it stands,
+so whoever picks it up next doesn't repeat the exploration:
+
+- `zkir-v2` is already installed (2.1.0), has zero conflicting dependencies,
+  and `check(serializedPreimage, keyMaterialProvider)` is the right function —
+  confirmed from its own `.d.ts`. Circuit proof data is directly on the
+  compact-runtime 0.16 circuit result as `result.proofData` (see
+  `localProve.ts` and `test/contract/disclosure.test.ts` for how to read it).
+- The proof server's `/check` HTTP endpoint is **not** a substitute — read
+  its actual contract (`proof-server:proof-server-api` in the Midnight Expert
+  plugin): it returns branch-omission/zero-padding metadata for transcript
+  assembly, explicitly "not a per-constraint pass/fail validator." Real
+  verification has to go through `zkir-v2` locally, or through the SDK's own
+  `/prove`-based flow — not this endpoint.
+- `check()`'s `KeyMaterialProvider.getParams(k)` needs the ZK trusted-setup
+  parameters. **The host is real and public: `https://srs.midnight.network/`**
+  — found directly in the proof server's own startup logs
+  (`docker compose logs proof-server`, visible even without `-v`). No account,
+  no auth; every proof server fetches from it on first boot.
+- **Not resolved:** the exact per-`k` file path. Guessed patterns
+  (`params_10.bin`, etc.) all return `403` (consistent with a gated object
+  store, not a dead host). Tried extracting it from the wire by restarting a
+  throwaway proof-server instance with `RUST_LOG=trace` — this binary does
+  **not** appear to read `RUST_LOG` at all; verbosity is fixed by `-v` alone,
+  and `-v` only logs the connection target (`reqwest::connect`), not the
+  request path.
+- Also found while spiking: the fetched material is **checksum-verified**
+  against an expected value baked into the Rust binary ("Fetching public
+  parameters for k=10 - finished." / "- verified correct."). Even with the
+  right URL, replicating that verification (or trusting the bytes unverified)
+  is a second, separate problem — this is deeper than a missing filename.
+
+**If you pick this back up:** the fastest next step is almost certainly *not*
+more log-level archaeology — try a TLS-intercepting proxy (`mitmproxy` on the
+same Docker network, `HTTPS_PROXY` env var, since `reqwest` clients typically
+honor it unless explicitly disabled), which would show the real request/response
+including the exact path, in one shot.
+
+Nothing about this cut affects any shipped behavior — `"fast"` mode
+(`circuit-checked`) is the real, working privacy mechanism this project's ZK
+guarantees already rest on. This only adds independent third-party
+verifiability of a single proof artifact on top of it.
