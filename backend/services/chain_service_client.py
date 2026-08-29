@@ -42,7 +42,7 @@ def _build_client() -> httpx.AsyncClient:
         connect=settings.chain_service_connect_timeout_seconds,
     )
     return httpx.AsyncClient(
-        base_url=settings.chain_service_base_url,
+        base_url=settings.chain_service_url,
         timeout=timeout,
     )
 
@@ -50,7 +50,7 @@ def _build_client() -> httpx.AsyncClient:
 async def startup() -> None:
     global _client
     _client = _build_client()
-    logger.info("chain-service HTTP client initialized: %s", settings.chain_service_base_url)
+    logger.info("chain-service HTTP client initialized: %s", settings.chain_service_url)
 
 
 async def shutdown() -> None:
