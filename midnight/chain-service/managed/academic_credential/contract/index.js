@@ -124,14 +124,14 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('authorizeIssuer',
                                      'argument 1 (as invoked from Typescript)',
-                                     'academic_credential.compact line 66 char 1',
+                                     'academic_credential.compact line 70 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(issuerPk_0.buffer instanceof ArrayBuffer && issuerPk_0.BYTES_PER_ELEMENT === 1 && issuerPk_0.length === 32)) {
           __compactRuntime.typeError('authorizeIssuer',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'academic_credential.compact line 66 char 1',
+                                     'academic_credential.compact line 70 char 1',
                                      'Bytes<32>',
                                      issuerPk_0)
         }
@@ -160,14 +160,14 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('issue',
                                      'argument 1 (as invoked from Typescript)',
-                                     'academic_credential.compact line 75 char 1',
+                                     'academic_credential.compact line 79 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(credentialId_0.buffer instanceof ArrayBuffer && credentialId_0.BYTES_PER_ELEMENT === 1 && credentialId_0.length === 32)) {
           __compactRuntime.typeError('issue',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'academic_credential.compact line 75 char 1',
+                                     'academic_credential.compact line 79 char 1',
                                      'Bytes<32>',
                                      credentialId_0)
         }
@@ -194,14 +194,14 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('revokeCredential',
                                      'argument 1 (as invoked from Typescript)',
-                                     'academic_credential.compact line 90 char 1',
+                                     'academic_credential.compact line 103 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(credentialId_0.buffer instanceof ArrayBuffer && credentialId_0.BYTES_PER_ELEMENT === 1 && credentialId_0.length === 32)) {
           __compactRuntime.typeError('revokeCredential',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'academic_credential.compact line 90 char 1',
+                                     'academic_credential.compact line 103 char 1',
                                      'Bytes<32>',
                                      credentialId_0)
         }
@@ -231,21 +231,21 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('proveCredential',
                                      'argument 1 (as invoked from Typescript)',
-                                     'academic_credential.compact line 101 char 1',
+                                     'academic_credential.compact line 118 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(credentialId_0.buffer instanceof ArrayBuffer && credentialId_0.BYTES_PER_ELEMENT === 1 && credentialId_0.length === 32)) {
           __compactRuntime.typeError('proveCredential',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'academic_credential.compact line 101 char 1',
+                                     'academic_credential.compact line 118 char 1',
                                      'Bytes<32>',
                                      credentialId_0)
         }
         if (!(typeof(revealGpa_0) === 'boolean')) {
           __compactRuntime.typeError('proveCredential',
                                      'argument 2 (argument 3 as invoked from Typescript)',
-                                     'academic_credential.compact line 101 char 1',
+                                     'academic_credential.compact line 118 char 1',
                                      'Boolean',
                                      revealGpa_0)
         }
@@ -394,7 +394,7 @@ export class Contract {
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('localSecretKey',
                                  'return value',
-                                 'academic_credential.compact line 46 char 1',
+                                 'academic_credential.compact line 50 char 1',
                                  'Bytes<32>',
                                  result_0)
     }
@@ -411,7 +411,7 @@ export class Contract {
     if (!(typeof(result_0) === 'object' && result_0.studentId.buffer instanceof ArrayBuffer && result_0.studentId.BYTES_PER_ELEMENT === 1 && result_0.studentId.length === 32 && result_0.issuerPk.buffer instanceof ArrayBuffer && result_0.issuerPk.BYTES_PER_ELEMENT === 1 && result_0.issuerPk.length === 32 && result_0.institutionId.buffer instanceof ArrayBuffer && result_0.institutionId.BYTES_PER_ELEMENT === 1 && result_0.institutionId.length === 32 && typeof(result_0.degreeCode) === 'bigint' && result_0.degreeCode >= 0n && result_0.degreeCode <= 4294967295n && typeof(result_0.graduationYear) === 'bigint' && result_0.graduationYear >= 0n && result_0.graduationYear <= 65535n && typeof(result_0.gpaTimes100) === 'bigint' && result_0.gpaTimes100 >= 0n && result_0.gpaTimes100 <= 65535n)) {
       __compactRuntime.typeError('credentialFields',
                                  'return value',
-                                 'academic_credential.compact line 47 char 1',
+                                 'academic_credential.compact line 51 char 1',
                                  'struct CredentialData<studentId: Bytes<32>, issuerPk: Bytes<32>, institutionId: Bytes<32>, degreeCode: Uint<0..4294967296>, graduationYear: Uint<0..65536>, gpaTimes100: Uint<0..65536>>',
                                  result_0)
     }
@@ -428,7 +428,7 @@ export class Contract {
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('credentialSalt',
                                  'return value',
-                                 'academic_credential.compact line 48 char 1',
+                                 'academic_credential.compact line 52 char 1',
                                  'Bytes<32>',
                                  result_0)
     }
@@ -541,6 +541,10 @@ export class Contract {
   _revokeCredential_0(context, partialProofData, credentialId_0) {
     const pk_0 = this._publicKey_0(this._localSecretKey_0(context,
                                                           partialProofData));
+    const fields_0 = this._credentialFields_0(context, partialProofData);
+    const commitment_0 = this._persistentCommit_0(fields_0,
+                                                  this._credentialSalt_0(context,
+                                                                         partialProofData));
     __compactRuntime.assert(_descriptor_1.fromValue(__compactRuntime.queryLedgerState(context,
                                                                                       partialProofData,
                                                                                       [
@@ -575,6 +579,28 @@ export class Contract {
                                                                                        { popeq: { cached: true,
                                                                                                   result: undefined } }]).value),
                             'unknown credential');
+    __compactRuntime.assert(this._equal_2(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
+                                                                                                    partialProofData,
+                                                                                                    [
+                                                                                                     { dup: { n: 0 } },
+                                                                                                     { idx: { cached: false,
+                                                                                                              pushPath: false,
+                                                                                                              path: [
+                                                                                                                     { tag: 'value',
+                                                                                                                       value: { value: _descriptor_11.toValue(1n),
+                                                                                                                                alignment: _descriptor_11.alignment() } }] } },
+                                                                                                     { idx: { cached: false,
+                                                                                                              pushPath: false,
+                                                                                                              path: [
+                                                                                                                     { tag: 'value',
+                                                                                                                       value: { value: _descriptor_0.toValue(credentialId_0),
+                                                                                                                                alignment: _descriptor_0.alignment() } }] } },
+                                                                                                     { popeq: { cached: false,
+                                                                                                                result: undefined } }]).value),
+                                          commitment_0),
+                            'commitment mismatch');
+    __compactRuntime.assert(this._equal_3(fields_0.issuerPk, pk_0),
+                            'issuer key mismatch');
     __compactRuntime.queryLedgerState(context,
                                       partialProofData,
                                       [
@@ -615,7 +641,7 @@ export class Contract {
                                                                                        { popeq: { cached: true,
                                                                                                   result: undefined } }]).value),
                             'unknown credential');
-    __compactRuntime.assert(this._equal_2(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
+    __compactRuntime.assert(this._equal_4(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
                                                                                                     partialProofData,
                                                                                                     [
                                                                                                      { dup: { n: 0 } },
@@ -688,6 +714,14 @@ export class Contract {
     if (!x0.every((x, i) => y0[i] === x)) { return false; }
     return true;
   }
+  _equal_3(x0, y0) {
+    if (!x0.every((x, i) => y0[i] === x)) { return false; }
+    return true;
+  }
+  _equal_4(x0, y0) {
+    if (!x0.every((x, i) => y0[i] === x)) { return false; }
+    return true;
+  }
 }
 export function ledger(stateOrChargedState) {
   const state = stateOrChargedState instanceof __compactRuntime.StateValue ? stateOrChargedState : stateOrChargedState.state;
@@ -752,7 +786,7 @@ export function ledger(stateOrChargedState) {
         if (!(elem_0.buffer instanceof ArrayBuffer && elem_0.BYTES_PER_ELEMENT === 1 && elem_0.length === 32)) {
           __compactRuntime.typeError('member',
                                      'argument 1',
-                                     'academic_credential.compact line 40 char 1',
+                                     'academic_credential.compact line 44 char 1',
                                      'Bytes<32>',
                                      elem_0)
         }
@@ -830,7 +864,7 @@ export function ledger(stateOrChargedState) {
         if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32)) {
           __compactRuntime.typeError('member',
                                      'argument 1',
-                                     'academic_credential.compact line 41 char 1',
+                                     'academic_credential.compact line 45 char 1',
                                      'Bytes<32>',
                                      key_0)
         }
@@ -859,7 +893,7 @@ export function ledger(stateOrChargedState) {
         if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32)) {
           __compactRuntime.typeError('lookup',
                                      'argument 1',
-                                     'academic_credential.compact line 41 char 1',
+                                     'academic_credential.compact line 45 char 1',
                                      'Bytes<32>',
                                      key_0)
         }
@@ -939,7 +973,7 @@ export function ledger(stateOrChargedState) {
         if (!(elem_0.buffer instanceof ArrayBuffer && elem_0.BYTES_PER_ELEMENT === 1 && elem_0.length === 32)) {
           __compactRuntime.typeError('member',
                                      'argument 1',
-                                     'academic_credential.compact line 42 char 1',
+                                     'academic_credential.compact line 46 char 1',
                                      'Bytes<32>',
                                      elem_0)
         }
@@ -1001,7 +1035,7 @@ export const pureCircuits = {
     if (!(sk_0.buffer instanceof ArrayBuffer && sk_0.BYTES_PER_ELEMENT === 1 && sk_0.length === 32)) {
       __compactRuntime.typeError('publicKey',
                                  'argument 1',
-                                 'academic_credential.compact line 57 char 1',
+                                 'academic_credential.compact line 61 char 1',
                                  'Bytes<32>',
                                  sk_0)
     }

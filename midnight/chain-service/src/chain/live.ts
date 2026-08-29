@@ -193,6 +193,7 @@ class LiveChainAdapter implements ChainAdapter {
 
   async revoke(credentialId: string): Promise<RevokeResult> {
     return this.queue.run(async () => {
+      const key = credentialId.trim().toUpperCase();
       const idBytes = credentialIdToBytes(credentialId);
       const { state } = await this.liveState();
       const l: any = ledger(state as never);
@@ -201,11 +202,21 @@ class LiveChainAdapter implements ChainAdapter {
         throw new AppError("CREDENTIAL_ALREADY_REVOKED", "This credential was already revoked.");
       }
 
+      // The circuit now recomputes the commitment from witness fields+salt and
+      // asserts it matches the ledger entry AND that fields.issuerPk == pk —
+      // this is what binds revocation to the credential's actual issuer rather
+      // than to any authorized issuer (see academic_credential.compact). An
+      // empty/zeroed working set can never satisfy that, so the real vault
+      // entry for this credential must be loaded, exactly as prove() does.
+      const entry = await this.vault.get(key);
+      if (!entry) throw new AppError("PROOF_MATERIAL_UNAVAILABLE");
+
       const issuerSk = deriveIssuerSecretKey(
         this.config.MIDNIGHT_WALLET_SEED ?? GENESIS_SEED,
         "demo-university",
       );
-      await this.setWorkingSet(emptyWorkingSet(issuerSk));
+      const ps: AcadPrivateState = { secretKey: issuerSk, fields: entry.fields, salt: entry.salt };
+      await this.setWorkingSet(ps);
 
       const res = await this.contract.callTx.revokeCredential(idBytes);
       const blockHeight = await this.waitForState((x) => x.revoked.member(idBytes));
