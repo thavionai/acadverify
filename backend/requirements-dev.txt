@@ -1,0 +1,5 @@
+# Test-only dependencies. Kept out of requirements.txt so the runtime image
+# stays lean (the Dockerfile installs requirements.txt only).
+-r requirements.txt
+pytest>=8.3.0
+pytest-asyncio>=0.24.0

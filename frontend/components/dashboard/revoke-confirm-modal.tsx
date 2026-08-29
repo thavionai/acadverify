@@ -95,11 +95,25 @@ export function RevokeConfirmModal({
         <h2 id="revoke-modal-title" className="text-lg font-semibold text-slate-950">
           Revoke this certificate?
         </h2>
+        {/* studentName is always empty here — the registry index deliberately
+            never stores student identity (docs/data-model.md) — so this
+            rendered as a bare "mark 's Master of ... credential". Name the
+            credential itself rather than an absent person. */}
         <p id="revoke-modal-description" className="mt-2 text-sm text-slate-700">
-          This will permanently mark{" "}
-          <span className="font-semibold">{credential.studentName}</span>'s{" "}
-          {credential.degree} credential as revoked on-chain. This action
-          cannot be undone.
+          {credential.studentName ? (
+            <>
+              This will permanently mark{" "}
+              <span className="font-semibold">{credential.studentName}</span>
+              &apos;s {credential.degree} credential as revoked on-chain.
+            </>
+          ) : (
+            <>
+              This will permanently mark this{" "}
+              <span className="font-semibold">{credential.degree}</span>{" "}
+              credential as revoked on-chain.
+            </>
+          )}{" "}
+          This action cannot be undone.
         </p>
 
         {state === "error" ? (

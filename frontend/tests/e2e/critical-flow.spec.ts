@@ -59,7 +59,8 @@ test.describe("critical credential lifecycle", () => {
     // issuer without a real browser extension installed.
     await page.addInitScript(
       ({ address }) => {
-        // @ts-expect-error - test shim
+        // `window.midnight` is declared globally in lib/wallet.ts, so this
+        // shim type-checks without a suppression.
         window.midnight = {
           mnLace: {
             name: "Lace",

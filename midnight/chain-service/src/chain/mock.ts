@@ -151,7 +151,6 @@ export class MockChainAdapter implements ChainAdapter {
     const revealGpa = disclose.includes("gpa");
     const status = rec.tampered ? "INVALID_PROOF" : rec.revoked ? "REVOKED" : "VALID";
 
-    const withheld = ["studentId", ...(revealGpa ? [] : ["gpa"])];
     const disclosed =
       status === "VALID"
         ? {
@@ -162,6 +161,17 @@ export class MockChainAdapter implements ChainAdapter {
             gpaTimes100: revealGpa ? rec.fields.gpaTimes100 : null,
           }
         : null;
+
+    // `withheld` was derived from CONSENT alone, independent of status. When the
+    // proof does not succeed nothing is disclosed at all, so reporting only
+    // ["studentId"] under-stated it — and a consented-to gpa then appeared in
+    // neither list: null in `disclosed`, absent from `withheld`.
+    //
+    // Whatever was not disclosed was withheld. Keep the two mutually exclusive
+    // and jointly exhaustive so a verifier can trust the withheld list.
+    const withheld = disclosed
+      ? ["studentId", ...(revealGpa ? [] : ["gpa"])]
+      : ["studentId", "gpa", "institutionId", "degreeCode", "graduationYear"];
 
     return {
       status,

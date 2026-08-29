@@ -76,3 +76,7 @@ Thumbs.db
 
 # Local data volumes
 data/local/
+
+# Next.js 16 regenerates these on every `next dev` (see next.config agentRules).
+frontend/AGENTS.md
+frontend/CLAUDE.md
