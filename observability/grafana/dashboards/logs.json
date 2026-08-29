@@ -1,0 +1,60 @@
+{
+  "uid": "acad-logs",
+  "title": "AcadVerify — Live Logs",
+  "tags": ["acadverify", "sre"],
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": {"from": "now-15m", "to": "now"},
+  "schemaVersion": 39,
+  "templating": {
+    "list": [{
+      "name": "container", "label": "Container", "type": "query",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "query": "label_values(container)",
+      "includeAll": true, "allValue": ".+", "multi": true,
+      "current": {"text": "All", "value": "$__all"}
+    }]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Log volume by container",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [{
+        "expr": "sum by (container) (count_over_time({container=~\"$container\"}[1m]))",
+        "legendFormat": "{{container}}", "refId": "A"
+      }]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Error lines by container",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 0},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {"custom": {"drawStyle": "bars"}}, "overrides": []},
+      "targets": [{
+        "expr": "sum by (container) (count_over_time({container=~\"$container\"} |~ \"(?i)error|panic|traceback\" [1m]))",
+        "legendFormat": "{{container}}", "refId": "A"
+      }]
+    },
+    {
+      "id": 3, "type": "logs", "title": "Live logs",
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 6},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending", "enableLogDetails": true},
+      "targets": [{"expr": "{container=~\"$container\"}", "refId": "A"}]
+    },
+    {
+      "id": 4, "type": "logs", "title": "Verification events",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 18},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"},
+      "targets": [{"expr": "{container=~\".+\"} |= \"event=verification\"", "refId": "A"}]
+    },
+    {
+      "id": 5, "type": "logs", "title": "Proof server",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 18},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"},
+      "targets": [{"expr": "{container=~\".*proof-server.*\"}", "refId": "A"}]
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "uid": "acad-system",
+  "title": "AcadVerify — System Resources",
+  "tags": ["acadverify", "sre"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": {"from": "now-30m", "to": "now"},
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "CPU per container (cores)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"unit": "none"}, "overrides": []},
+      "targets": [{
+        "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\".+\"}[2m]))",
+        "legendFormat": "{{name}}", "refId": "A"
+      }]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Memory per container",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+      "targets": [{
+        "expr": "container_memory_working_set_bytes{name=~\".+\"}",
+        "legendFormat": "{{name}}", "refId": "A"
+      }]
+    },
+    {
+      "id": 3, "type": "gauge", "title": "Host CPU busy",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}}, "overrides": []},
+      "targets": [{
+        "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[2m])))",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 4, "type": "gauge", "title": "Host memory used",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 75}, {"color": "red", "value": 90}]}}, "overrides": []},
+      "targets": [{
+        "expr": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 5, "type": "gauge", "title": "Root disk used",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 80}, {"color": "red", "value": 90}]}}, "overrides": []},
+      "targets": [{
+        "expr": "100 * (1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!~\"tmpfs|overlay\"})",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 6, "type": "stat", "title": "Containers running",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [{
+        "expr": "count(container_last_seen{name=~\".+\"} > time() - 60)",
+        "refId": "A"
+      }]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Network I/O per container",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"unit": "Bps"}, "overrides": []},
+      "targets": [
+        {"expr": "sum by (name) (rate(container_network_receive_bytes_total{name=~\".+\"}[2m]))", "legendFormat": "rx {{name}}", "refId": "A"},
+        {"expr": "sum by (name) (rate(container_network_transmit_bytes_total{name=~\".+\"}[2m]))", "legendFormat": "tx {{name}}", "refId": "B"}
+      ]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Proof server CPU (verification latency driver)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"unit": "none"}, "overrides": []},
+      "targets": [{
+        "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".*proof-server.*\"}[2m]))",
+        "legendFormat": "proof-server cores", "refId": "A"
+      }]
+    }
+  ]
+}

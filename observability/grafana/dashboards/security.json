@@ -1,0 +1,85 @@
+{
+  "uid": "acad-security",
+  "title": "AcadVerify — Security & Anomalies",
+  "tags": ["acadverify", "sre", "security"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": {"from": "now-1h", "to": "now"},
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Verifications by status (from logs)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {}, "overrides": [
+        {"matcher": {"id": "byRegexp", "options": ".*INVALID.*"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": "red"}}]},
+        {"matcher": {"id": "byRegexp", "options": ".*VALID.*"}, "properties": []}
+      ]},
+      "targets": [{
+        "expr": "sum by (status) (increase(acadverify_verifications_total[5m]))",
+        "legendFormat": "{{status}}", "refId": "A"
+      }]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Verification rate anomaly (z-score)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"custom": {"thresholdsStyle": {"mode": "line"}}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 3}]}}, "overrides": []},
+      "targets": [{"expr": "acadverify_verification_rate_zscore", "legendFormat": "z-score", "refId": "A"}]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Fake-cert probing alerts",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "targets": [{"expr": "acadverify_fake_cert_alerts_total", "refId": "A"}]
+    },
+    {
+      "id": 4, "type": "stat", "title": "IPs blocklisted",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 25}]}}, "overrides": []},
+      "targets": [{"expr": "acadverify_blocklist_size", "refId": "A"}]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Credential enumeration alerts",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}]}}, "overrides": []},
+      "targets": [{"expr": "acadverify_credential_probe_alerts_total", "refId": "A"}]
+    },
+    {
+      "id": 6, "type": "stat", "title": "Detector healthy",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "OK", "color": "green"}}}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "targets": [{"expr": "acadverify_detector_last_poll_success", "refId": "A"}]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "INVALID_PROOF volume (forgery attempts)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "fieldConfig": {"defaults": {"custom": {"drawStyle": "bars"}, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}]}}, "overrides": []},
+      "targets": [{
+        "expr": "increase(acadverify_verifications_total{status=\"INVALID_PROOF\"}[5m])",
+        "legendFormat": "INVALID_PROOF / 5m", "refId": "A"
+      }]
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Error-log rate by container",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+      "datasource": {"type": "prometheus", "uid": "prom"},
+      "targets": [{
+        "expr": "sum by (container) (rate(acadverify_log_errors_total[5m]))",
+        "legendFormat": "{{container}}", "refId": "A"
+      }]
+    },
+    {
+      "id": 9, "type": "logs", "title": "Detector alert log",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 22},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"},
+      "targets": [{"expr": "{container=~\".*anomaly-detector.*\"} |= \"[ALERT]\"", "refId": "A"}]
+    }
+  ]
+}
