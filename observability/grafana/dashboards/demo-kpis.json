@@ -1,0 +1,210 @@
+{
+  "uid": "acad-demo-kpis",
+  "title": "AcadVerify — Demo KPIs",
+  "tags": ["acadverify", "demo", "kpi"],
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Certs validated (VALID)",
+      "gridPos": { "h": 5, "w": 5, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "targets": [
+        {
+          "expr": "sum(increase(acadverify_verifications_total{status=\"VALID\"}[$__range])) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Failed / forgery (INVALID_PROOF)",
+      "gridPos": { "h": 5, "w": 5, "x": 5, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "targets": [
+        {
+          "expr": "sum(increase(acadverify_verifications_total{status=\"INVALID_PROOF\"}[$__range])) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Revoked-cert checks",
+      "gridPos": { "h": 5, "w": 5, "x": 10, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "targets": [
+        {
+          "expr": "sum(increase(acadverify_verifications_total{status=\"REVOKED\"}[$__range])) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "orange" },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Credentials issued on-chain",
+      "description": "Count of chain-service 'credential issued' events (live mode: each is a real ZK proof + transaction).",
+      "gridPos": { "h": 5, "w": 5, "x": 15, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({service=\"chain-service\"} |= `credential issued` [$__range]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "decimals": 0,
+          "noValue": "0"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "stat",
+      "title": "p95 proof time (per prove call)",
+      "description": "From proof-server access logs. A full issuance chains several prove calls (~25s total on a laptop).",
+      "gridPos": { "h": 5, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.95, {service=\"proof-server\"} |= `POST /prove` | regexp `took (?P<dur>[0-9.]+)s` | unwrap dur [$__range])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s", "decimals": 2, "noValue": "no proofs yet" },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Verification outcomes over time",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "targets": [
+        {
+          "expr": "sum by (status) (increase(acadverify_verifications_total[5m]))",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "drawStyle": "bars", "fillOpacity": 60 }, "decimals": 0 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "VALID" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "INVALID_PROOF" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "REVOKED" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] }
+        ]
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Proof-server latency per call",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.95, {service=\"proof-server\"} |= `POST /prove` | regexp `took (?P<dur>[0-9.]+)s` | unwrap dur [$__interval])",
+          "legendFormat": "p95",
+          "refId": "A"
+        },
+        {
+          "expr": "quantile_over_time(0.5, {service=\"proof-server\"} |= `POST /prove` | regexp `took (?P<dur>[0-9.]+)s` | unwrap dur [$__interval])",
+          "legendFormat": "p50",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } }, "overrides": [] }
+    },
+    {
+      "type": "timeseries",
+      "title": "Host CPU busy % (proving is CPU-bound)",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "targets": [
+        {
+          "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[2m])))",
+          "legendFormat": "busy",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "max": 100, "min": 0, "custom": { "fillOpacity": 15 } },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Host memory used %",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prom" },
+      "targets": [
+        {
+          "expr": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+          "legendFormat": "used",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "max": 100, "min": 0, "custom": { "fillOpacity": 15 } },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "API traffic (backend request lines)",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 13 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "sum(count_over_time({service=\"backend\"} |~ `\"(GET|POST|PUT) /api/` [$__interval]))",
+          "legendFormat": "requests",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": { "defaults": { "decimals": 0, "custom": { "drawStyle": "bars", "fillOpacity": 40 } }, "overrides": [] }
+    },
+    {
+      "type": "logs",
+      "title": "Live credential events",
+      "description": "Verifications, issuances, revocations, blocklist rejections — as they happen.",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 20 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": { "showTime": true, "wrapLogMessage": true, "sortOrder": "Descending" },
+      "targets": [
+        {
+          "expr": "{service=~\"backend|chain-service\"} |~ `event=verification|credential issued|credential revoked|blocklisted IP`",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}
