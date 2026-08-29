@@ -133,20 +133,20 @@ services:
       # never be proven again. See docs/data-model.md.
       - private-state:/app/.private-state
 
-  # backend:
-  #   build: ./backend
-  #   ports:
-  #     - "8080:8080"
-  #   env_file: .env
-  #   environment:
-  #     DYNAMODB_ENDPOINT: http://dynamodb:8000
-  #     S3_ENDPOINT: http://minio:9000
-  #     CHAIN_SERVICE_URL: http://chain-service:8090
-  #   depends_on:
-  #     - dynamodb
-  #     - minio
-  #   volumes:
-  #     - ./backend:/app
+  backend:
+      build: ./backend
+      ports:
+        - "8080:8080"
+      env_file: .env
+      environment:
+        DYNAMODB_ENDPOINT: http://dynamodb:8000
+        S3_ENDPOINT: http://minio:9000
+        CHAIN_SERVICE_URL: http://chain-service:8090
+      depends_on:
+        - dynamodb
+        - minio
+      volumes:
+        - ./backend:/app
 
   # frontend:
   #   build: ./frontend
