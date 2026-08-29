@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PublicNav } from "@/components/public/public-nav";
 import { ScrollReveal } from "@/components/public/scroll-reveal";
 import { ProblemPanels } from "@/components/public/problem-panels";
+import { SolutionPanels } from "@/components/public/solution-panels";
 import {
   IconArrowRight,
   IconCheck,
@@ -38,26 +39,9 @@ const HOW_IT_WORKS = [
 ];
 
 const DISCLOSURE_DEMO = {
-  shared: [
-    { field: "Institution", value: "North Valley University" },
-    { field: "Degree", value: "Master of Artificial Intelligence" },
-    { field: "Graduation year", value: "2026" },
-  ],
+  shared: ["Institution", "Degree", "Graduation year"],
   withheld: ["Student identity", "GPA", "Transcript", "Date of birth", "Address"],
 };
-
-const SHIPPING_NOW = [
-  "Selective disclosure — reveal a degree without revealing identity or GPA",
-  "On-chain revocation, checkable in seconds",
-  "Issuer authorisation enforced in the circuit, not by a database",
-  "Forgery is unprovable, not merely detected",
-];
-
-const NEXT_UP = [
-  "Proofs generated in the graduate's own wallet, so the platform never holds their data",
-  "A portable credential wallet for graduates",
-  "Verification that reveals nothing at all — not even which credential was checked",
-];
 
 export default function Home() {
   return (
@@ -226,17 +210,17 @@ export default function Home() {
                   <IconCheck className="h-3.5 w-3.5" aria-hidden />
                   Shared with the employer
                 </p>
-                <dl className="mt-3 space-y-2">
-                  {DISCLOSURE_DEMO.shared.map((row) => (
-                    <div
-                      key={row.field}
-                      className="flex flex-wrap items-baseline justify-between gap-2 border-b border-paper/10 pb-2 last:border-b-0"
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {DISCLOSURE_DEMO.shared.map((field) => (
+                    <li
+                      key={field}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-gold-500/40 bg-gold-500/10 px-3 py-1.5 text-sm text-paper"
                     >
-                      <dt className="text-sm text-paper-muted">{row.field}</dt>
-                      <dd className="font-mono text-sm text-paper">{row.value}</dd>
-                    </div>
+                      <IconCheck className="h-3 w-3 shrink-0 text-gold-500" aria-hidden />
+                      {field}
+                    </li>
                   ))}
-                </dl>
+                </ul>
               </div>
 
               <div className="mt-8">
@@ -291,72 +275,12 @@ export default function Home() {
         </section>
 
         {/* ---------------------------------------------------------------
-            The claim that does the most work
+            What we built. Replaces the old standalone "forgery can't be
+            proven" section, which the forgery panel now makes at length and
+            with a picture, and the Working today / Next columns, which are
+            folded into this section's own lists.
         --------------------------------------------------------------- */}
-        <section className="border-t border-paper/10 bg-ink-900 px-5 py-24 sm:px-8">
-          <div className="mx-auto max-w-4xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-500">
-              Why this is different
-            </p>
-            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
-              A forged credential doesn&apos;t get caught.
-              <span className="block text-gold-400">It can&apos;t be proven.</span>
-            </h2>
-            <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-paper-dim">
-              Most systems detect tampering after the fact by comparing hashes.
-              Here there is nothing to compare: altered details produce a
-              different commitment, the proof simply fails to generate, and no
-              output exists to present. Forgery isn&apos;t flagged — it is
-              impossible to produce.
-            </p>
-          </div>
-        </section>
-
-        {/* ---------------------------------------------------------------
-            Live today vs. planned — stated separately, on purpose
-        --------------------------------------------------------------- */}
-        <section className="border-t border-paper/10 px-5 py-24 sm:px-8">
-          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2">
-            <div>
-              <h2 className="flex items-center gap-2 text-xl font-semibold text-paper">
-                <span className="inline-flex h-2 w-2 rounded-full bg-gold-500" aria-hidden />
-                Working today
-              </h2>
-              <ul className="mt-6 space-y-4">
-                {SHIPPING_NOW.map((item) => (
-                  <li key={item} className="flex gap-3 text-paper-dim">
-                    <IconCheck
-                      className="mt-1 h-4 w-4 shrink-0 text-gold-500"
-                      aria-hidden
-                    />
-                    <span className="text-pretty leading-relaxed">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h2 className="flex items-center gap-2 text-xl font-semibold text-paper-muted">
-                <span
-                  className="inline-flex h-2 w-2 rounded-full border border-paper-muted"
-                  aria-hidden
-                />
-                Next
-              </h2>
-              <ul className="mt-6 space-y-4">
-                {NEXT_UP.map((item) => (
-                  <li key={item} className="flex gap-3 text-paper-muted">
-                    <span
-                      className="mt-2 h-1 w-1 shrink-0 rounded-full bg-paper-muted"
-                      aria-hidden
-                    />
-                    <span className="text-pretty leading-relaxed">{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </section>
+        <SolutionPanels />
 
         {/* ---------------------------------------------------------------
             Closing call to action

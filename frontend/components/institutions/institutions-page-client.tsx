@@ -1,7 +1,6 @@
 "use client";
 
 import { PublicNav } from "@/components/public/public-nav";
-import { TrustStrip } from "@/components/public/trust-strip";
 import { SetupWizard } from "@/components/institutions/setup-wizard";
 import { IconAward, IconGraduationCap, IconShieldCheck } from "@/components/icons";
 
@@ -62,7 +61,6 @@ export function InstitutionsPageClient() {
           <SetupWizard />
         </section>
 
-        <TrustStrip />
       </main>
     </>
   );

@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { PublicNav } from "@/components/public/public-nav";
-import { TrustStrip } from "@/components/public/trust-strip";
 import { IconQrCode, IconSearch } from "@/components/icons";
 
 type DetectedBarcode = {
@@ -218,7 +217,6 @@ export function VerifyLookup() {
           progress rather than a spinner that could read as a hang.
         </div>
       </main>
-      <TrustStrip label="Secured By" />
     </>
   );
 }
