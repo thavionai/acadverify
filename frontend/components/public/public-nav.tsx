@@ -12,21 +12,58 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Universities" },
 ];
 
-export function PublicNav() {
+/**
+ * `dark` is for the landing page, which sits on the black/gold artwork; the
+ * header floats over the hero rather than sitting in its own band. Every other
+ * public page uses `light`.
+ */
+type Variant = "light" | "dark";
+
+const STYLES: Record<
+  Variant,
+  {
+    header: string;
+    mark: string;
+    wordmark: string;
+    linkActive: string;
+    linkIdle: string;
+    iconButton: string;
+  }
+> = {
+  light: {
+    header: "border-b border-slate-200 bg-white",
+    mark: "bg-slate-950 text-white",
+    wordmark: "text-slate-950",
+    linkActive: "border-slate-950 text-slate-950",
+    linkIdle: "border-transparent text-slate-600 hover:text-slate-950",
+    iconButton: "text-slate-500 hover:bg-slate-100 hover:text-slate-950",
+  },
+  dark: {
+    header: "absolute inset-x-0 top-0 z-20 bg-transparent",
+    mark: "bg-gold-500 text-ink-950",
+    wordmark: "text-paper",
+    linkActive: "border-gold-500 text-paper",
+    linkIdle: "border-transparent text-paper-dim hover:text-gold-300",
+    iconButton: "text-paper-muted hover:bg-paper/10 hover:text-paper",
+  },
+};
+
+export function PublicNav({ variant = "light" }: { variant?: Variant } = {}) {
   const pathname = usePathname();
   const { walletState, connect, disconnect } = useWalletContext();
+  const s = STYLES[variant];
 
   return (
-    <header className="border-b border-slate-200 bg-white">
+    <header className={s.header}>
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-6 px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2">
           <span
             aria-hidden
-            className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-950 text-xs font-bold text-white"
+            className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${s.mark}`}
           >
             A
           </span>
-          <span className="text-lg font-semibold tracking-tight text-slate-950">
+          <span className={`text-lg font-semibold tracking-tight ${s.wordmark}`}>
             AcadVerify
           </span>
         </Link>
@@ -40,9 +77,7 @@ export function PublicNav() {
                 href={link.href}
                 aria-current={isActive ? "page" : undefined}
                 className={`border-b-2 pb-1 text-sm font-medium transition ${
-                  isActive
-                    ? "border-slate-950 text-slate-950"
-                    : "border-transparent text-slate-600 hover:text-slate-950"
+                  isActive ? s.linkActive : s.linkIdle
                 }`}
               >
                 {link.label}
@@ -52,25 +87,34 @@ export function PublicNav() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="hidden h-9 w-9 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 sm:flex"
-          >
-            <IconBell className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            aria-label="Account"
-            className="hidden h-9 w-9 items-center justify-center rounded-md text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 sm:flex"
-          >
-            <IconUserCircle className="h-5 w-5" />
-          </button>
+          {/* These two are presentational only — they have no handlers and no
+              destination. Kept on the product pages where the chrome is
+              expected, omitted from the landing page rather than offering a
+              visitor a control that does nothing. */}
+          {variant === "light" ? (
+            <>
+              <button
+                type="button"
+                aria-label="Notifications"
+                className={`hidden h-9 w-9 items-center justify-center rounded-md transition sm:flex ${s.iconButton}`}
+              >
+                <IconBell className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="Account"
+                className={`hidden h-9 w-9 items-center justify-center rounded-md transition sm:flex ${s.iconButton}`}
+              >
+                <IconUserCircle className="h-5 w-5" />
+              </button>
+            </>
+          ) : null}
           <WalletConnectButton
             state={walletState}
             onConnect={connect}
             onDisconnect={disconnect}
             showNetworkBadge={false}
+            tone={variant}
           />
         </div>
       </div>

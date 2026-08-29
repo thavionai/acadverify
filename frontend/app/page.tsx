@@ -1,218 +1,461 @@
+import Image from "next/image";
 import Link from "next/link";
 import { PublicNav } from "@/components/public/public-nav";
-import { TrustStrip } from "@/components/public/trust-strip";
+import { ScrollReveal } from "@/components/public/scroll-reveal";
 import {
-  IconBuilding,
+  IconArrowRight,
   IconCheck,
+  IconChevronDown,
   IconLock,
   IconShieldCheck,
-  IconUser,
+  IconX,
 } from "@/components/icons";
 
-const PORTALS = [
-  {
-    icon: IconUser,
-    title: "Student Portal",
-    description:
-      "Manage your credentials and share selective ZK-proofs with employers.",
-    cta: "Coming Soon",
-    href: null,
-  },
-  {
-    icon: IconBuilding,
-    title: "University Registry",
-    description:
-      "Issue and manage tamper-proof academic records for your students.",
-    cta: "Launch Admin Registry",
-    href: "/dashboard",
-  },
-  {
-    icon: IconShieldCheck,
-    title: "Verification Portal",
-    description:
-      "Instantly verify academic claims without compromising student privacy.",
-    cta: "Start Verification",
-    href: "/verify",
-  },
-] as const;
+/* ---------------------------------------------------------------------------
+   Every factual claim on this page is either sourced (see SOURCES) or describes
+   behaviour that actually ships today. Anything not yet built is labelled as
+   planned rather than implied — the same standard applied when the "Midnight
+   Testnet" and "IPFS" claims were removed from the product UI.
+--------------------------------------------------------------------------- */
 
-const STEPS = [
+const FRAUD_STATS = [
   {
-    number: "1",
-    title: "Mint",
-    description: "Universities issue immutable credentials to the ledger.",
+    figure: "1 in 3",
+    label: "job applicants",
+    detail: "admit to misrepresenting their academic credentials.",
   },
   {
-    number: "2",
-    title: "Store",
-    description: "Students securely store their records in private wallets.",
+    figure: "$21B",
+    label: "global industry",
+    detail: "is the estimated scale of commercial academic fraud.",
   },
   {
-    number: "3",
-    title: "Prove",
-    description: "Employers verify credentials via Zero-Knowledge proofs.",
+    figure: "+244%",
+    label: "in a single year",
+    detail:
+      "growth in digital diploma forgery, now 57% of all document fraud (2024).",
   },
 ];
 
-const PRIVACY_POINTS = [
-  "Selective Disclosure",
-  "Cryptographic Certainty",
-  "Total User Control",
+const HOW_IT_WORKS = [
+  {
+    step: "01",
+    title: "The university issues",
+    body: "A blinded commitment is written to Midnight. No name, no grade, no document — not even a hash of them. Only the university's authorised key can create it.",
+  },
+  {
+    step: "02",
+    title: "The graduate holds",
+    body: "The credential's actual contents stay off-chain, under the holder's control. Losing them is the only way to lose the credential; nobody else can open the commitment.",
+  },
+  {
+    step: "03",
+    title: "The employer verifies",
+    body: "A zero-knowledge proof confirms the degree is real, unrevoked, and from an authorised issuer — revealing only the fields the graduate consented to share.",
+  },
+];
+
+const DISCLOSURE_DEMO = {
+  shared: [
+    { field: "Institution", value: "North Valley University" },
+    { field: "Degree", value: "Master of Artificial Intelligence" },
+    { field: "Graduation year", value: "2026" },
+  ],
+  withheld: ["Student identity", "GPA", "Transcript", "Date of birth", "Address"],
+};
+
+const SHIPPING_NOW = [
+  "Selective disclosure — reveal a degree without revealing identity or GPA",
+  "On-chain revocation, checkable in seconds",
+  "Issuer authorisation enforced in the circuit, not by a database",
+  "Forgery is unprovable, not merely detected",
+];
+
+const NEXT_UP = [
+  "Proofs generated in the graduate's own wallet, so the platform never holds their data",
+  "A portable credential wallet for graduates",
+  "Verification that reveals nothing at all — not even which credential was checked",
 ];
 
 export default function Home() {
   return (
-    <>
-      <PublicNav />
+    <div className="relative bg-ink-950 text-paper">
+      <PublicNav variant="dark" />
       <main>
-        <section className="mx-auto max-w-4xl px-5 pb-16 pt-20 text-center sm:px-8">
-          <h1 className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-6xl">
-            The Future of Academic Trust
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-lg text-slate-600">
-            Secure, private, and instantly verifiable academic credentials
-            powered by the Midnight blockchain and Zero-Knowledge proofs.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              href="/verify"
-              className="inline-flex min-h-12 items-center justify-center rounded-md bg-slate-950 px-6 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
-            >
-              Enter Portal
-            </Link>
-            <a
-              href="#how-it-works"
-              className="inline-flex min-h-12 items-center justify-center rounded-md border border-slate-300 px-6 text-sm font-semibold text-slate-950 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
-            >
-              Learn More
-            </a>
-          </div>
-        </section>
+        {/* ---------------------------------------------------------------
+            Hero
+        --------------------------------------------------------------- */}
+        <section className="relative isolate overflow-hidden">
+          <div className="absolute inset-0 -z-10">
+            {/* Deliberately the sequence's own opening frame, not a copy of
+                it. The two were byte-identical, so the page paid for the same
+                548 KB twice and the hero could silently drift out of sync with
+                the shot the zoom sequence opens on. Same src, same `sizes`, so
+                the second request is a cache hit. */}
+            <Image
+              src="/images/sequence/00-tree.webp"
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover object-center"
+            />
+            {/* Two scrims, not one. The artwork is busy and text over it fails
+                contrast, but a single flat scrim heavy enough for the headline
+                also kills the canopy — and the scroll sequence below opens on
+                this exact image at full strength, so a dimmed hero reads as a
+                brightness jump at the handover.
 
-        <section className="mx-auto max-w-6xl px-5 pb-20 sm:px-8">
-          <div className="grid gap-5 sm:grid-cols-3">
-            {PORTALS.map((portal) => (
-              <div
-                key={portal.title}
-                className="flex flex-col rounded-lg border border-slate-200 p-6"
+                So: a light body scrim that deepens toward the copy, plus a
+                short band under the nav, which is the only place white text
+                sits over the bright gold branches. */}
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-linear-to-b from-ink-950/35 via-ink-950/65 to-ink-950"
+            />
+            <div
+              aria-hidden
+              className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-ink-950/85 to-transparent"
+            />
+          </div>
+
+          <div className="mx-auto flex min-h-[88vh] max-w-6xl flex-col justify-end px-5 pb-20 pt-28 sm:px-8">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-gold-500">
+              <IconShieldCheck className="h-4 w-4" aria-hidden />
+              Built on Midnight
+            </p>
+
+            <h1 className="mt-6 max-w-4xl text-balance text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+              A degree should prove itself.
+              <span className="block text-gold-400">
+                Not expose the graduate.
+              </span>
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-paper-dim">
+              Today, proving one line of your education means handing over all of
+              it — your transcript, your grades, your identity. AcadVerify lets a
+              university issue a credential that verifies cryptographically in
+              seconds, while the graduate decides exactly what the verifier gets
+              to see.
+            </p>
+
+            <div className="mt-10 flex flex-wrap items-center gap-3">
+              <Link
+                href="/verify"
+                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-gold-500 px-6 text-sm font-semibold text-ink-950 transition hover:bg-gold-400"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-950">
-                  <portal.icon className="h-5 w-5" />
-                </span>
-                <h2 className="mt-4 text-lg font-semibold text-slate-950">
-                  {portal.title}
-                </h2>
-                <p className="mt-2 flex-1 text-sm text-slate-600">
-                  {portal.description}
-                </p>
-                {portal.href ? (
-                  <Link
-                    href={portal.href}
-                    className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 text-sm font-semibold text-slate-950 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950"
-                  >
-                    {portal.cta}
-                  </Link>
-                ) : (
-                  <span
-                    aria-disabled
-                    className="mt-5 inline-flex min-h-11 cursor-not-allowed items-center justify-center rounded-md border border-dashed border-slate-300 text-sm font-semibold text-slate-400"
-                  >
-                    {portal.cta}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
+                Verify a credential
+                <IconArrowRight
+                  className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                  aria-hidden
+                />
+              </Link>
+              <Link
+                href="/dashboard"
+                className="inline-flex min-h-12 items-center justify-center rounded-md border border-paper/25 px-6 text-sm font-semibold text-paper transition hover:border-gold-500 hover:text-gold-300"
+              >
+                For universities
+              </Link>
+            </div>
 
-        <section
-          id="how-it-works"
-          className="border-y border-slate-200 bg-slate-50 px-5 py-16 sm:px-8"
-        >
-          <div className="mx-auto max-w-4xl text-center">
-            <h2 className="text-2xl font-semibold text-slate-950">How it Works</h2>
-            <p className="mt-2 text-slate-600">
-              A seamless, trustless process for academic verification.
+            {/* The sequence below picks up on this same tree and pushes into
+                it. Without a cue the hero reads as a full stop and the whole
+                sequence goes unseen. `animate-bounce` is neutralised by the
+                reduced-motion rule in globals.css. */}
+            <p
+              aria-hidden
+              className="mt-16 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.24em] text-paper-muted"
+            >
+              Scroll
+              <IconChevronDown className="h-4 w-4 animate-bounce text-gold-500" />
             </p>
           </div>
-          <div className="mx-auto mt-10 grid max-w-4xl gap-5 sm:grid-cols-3">
-            {STEPS.map((step) => (
-              <div
-                key={step.number}
-                className="rounded-lg border border-slate-200 bg-white p-6 text-center"
-              >
-                <span className="mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
-                  {step.number}
-                </span>
-                <h3 className="mt-4 font-semibold text-slate-950">{step.title}</h3>
-                <p className="mt-2 text-sm text-slate-600">{step.description}</p>
-              </div>
-            ))}
+        </section>
+
+        {/* ---------------------------------------------------------------
+            Scroll-driven zoom: the tree -> one diploma -> it was forged.
+            The argument below lands harder once you have been shown that
+            you could not tell the difference yourself.
+        --------------------------------------------------------------- */}
+        <ScrollReveal />
+
+        {/* ---------------------------------------------------------------
+            The problem — part one: forgery is industrialised
+        --------------------------------------------------------------- */}
+        <section className="border-t border-paper/10 px-5 py-24 sm:px-8">
+          <div className="mx-auto max-w-6xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-500">
+              The problem
+            </p>
+            <h2 className="mt-4 max-w-3xl text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
+              Faking a degree got easy. Checking one never did.
+            </h2>
+            <p className="mt-5 max-w-2xl text-pretty text-lg text-paper-dim">
+              Forgery used to need a printing press. It now needs a prompt —
+              and it is sold by subscription. Verification did not keep up: it
+              is still a person emailing a registrar and waiting days for a
+              reply. Fraud scaled. The check against it did not.
+            </p>
+
+            <dl className="mt-14 grid gap-px overflow-hidden rounded-lg border border-paper/15 bg-paper/15 sm:grid-cols-3">
+              {FRAUD_STATS.map((stat) => (
+                <div key={stat.figure} className="bg-ink-950 p-8">
+                  <dt className="font-mono text-4xl font-semibold text-gold-400 sm:text-5xl">
+                    {stat.figure}
+                  </dt>
+                  <dd className="mt-3">
+                    <span className="block text-sm font-semibold uppercase tracking-wider text-paper">
+                      {stat.label}
+                    </span>
+                    <span className="mt-1 block text-sm leading-relaxed text-paper-muted">
+                      {stat.detail}
+                    </span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
         </section>
 
-        <section className="bg-slate-950 px-5 py-16 text-white sm:px-8">
-          <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-2 sm:items-center">
+        {/* ---------------------------------------------------------------
+            The problem — part two: the over-disclosure tax
+        --------------------------------------------------------------- */}
+        <section className="border-t border-paper/10 bg-ink-900 px-5 py-24 sm:px-8">
+          <div className="mx-auto grid max-w-6xl gap-14 lg:grid-cols-2 lg:items-center">
             <div>
-              <h2 className="text-3xl font-semibold tracking-tight">
-                Zero-Knowledge Privacy
-              </h2>
-              <p className="mt-4 text-slate-300">
-                Prove you graduated without revealing your exact GPA, student
-                ID, or personal address. Zero-Knowledge proofs allow
-                verifiable claims to be validated without exposing the
-                underlying raw data. Trust is established
-                cryptographically, not through unnecessary disclosure.
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-500">
+                The part nobody talks about
               </p>
-              <ul className="mt-6 space-y-3">
-                {PRIVACY_POINTS.map((point) => (
-                  <li key={point} className="flex items-center gap-2 text-sm">
-                    <IconCheck className="h-4 w-4 shrink-0" aria-hidden />
-                    {point}
+              <h2 className="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+                Every honest graduate pays a privacy tax.
+              </h2>
+              <div className="mt-5 space-y-4 text-pretty text-lg leading-relaxed text-paper-dim">
+                <p>
+                  To prove a single fact — <em>this person holds this degree</em>{" "}
+                  — the standard process asks for the whole record. Grades in
+                  courses nobody asked about. Dates that reveal your age. A
+                  student number that follows you between systems.
+                </p>
+                <p>
+                  Putting credentials on a public blockchain usually makes this{" "}
+                  <span className="text-paper">worse</span>, not better: it adds a
+                  permanent, correlatable record of everything you have ever
+                  earned.
+                </p>
+              </div>
+            </div>
+
+            {/* Side-by-side: what a verifier learns, and what they don't. */}
+            <div className="rounded-lg border border-paper/15 bg-ink-950 p-6 sm:p-8">
+              <p className="text-sm font-semibold text-paper">
+                One verification, two very different outcomes
+              </p>
+
+              <div className="mt-6">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-gold-500">
+                  <IconCheck className="h-3.5 w-3.5" aria-hidden />
+                  Shared with the employer
+                </p>
+                <dl className="mt-3 space-y-2">
+                  {DISCLOSURE_DEMO.shared.map((row) => (
+                    <div
+                      key={row.field}
+                      className="flex flex-wrap items-baseline justify-between gap-2 border-b border-paper/10 pb-2 last:border-b-0"
+                    >
+                      <dt className="text-sm text-paper-muted">{row.field}</dt>
+                      <dd className="font-mono text-sm text-paper">{row.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+
+              <div className="mt-8">
+                <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-paper-muted">
+                  <IconLock className="h-3.5 w-3.5" aria-hidden />
+                  Never leaves the graduate
+                </p>
+                <ul className="mt-3 flex flex-wrap gap-2">
+                  {DISCLOSURE_DEMO.withheld.map((field) => (
+                    <li
+                      key={field}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-paper/25 px-3 py-1.5 text-sm text-paper-muted"
+                    >
+                      <IconX className="h-3 w-3 shrink-0" aria-hidden />
+                      {field}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------------------
+            How it works
+        --------------------------------------------------------------- */}
+        <section className="border-t border-paper/10 px-5 py-24 sm:px-8">
+          <div className="mx-auto max-w-6xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-500">
+              How it works
+            </p>
+            <h2 className="mt-4 max-w-3xl text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+              Three parties. Nothing shared that wasn&apos;t agreed.
+            </h2>
+
+            <ol className="mt-14 grid gap-8 md:grid-cols-3">
+              {HOW_IT_WORKS.map((item) => (
+                <li key={item.step} className="border-t border-gold-500/40 pt-6">
+                  <span className="font-mono text-sm font-semibold text-gold-500">
+                    {item.step}
+                  </span>
+                  <h3 className="mt-3 text-xl font-semibold text-paper">
+                    {item.title}
+                  </h3>
+                  <p className="mt-3 text-pretty leading-relaxed text-paper-muted">
+                    {item.body}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------------------
+            The claim that does the most work
+        --------------------------------------------------------------- */}
+        <section className="border-t border-paper/10 bg-ink-900 px-5 py-24 sm:px-8">
+          <div className="mx-auto max-w-4xl text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-500">
+              Why this is different
+            </p>
+            <h2 className="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-5xl">
+              A forged credential doesn&apos;t get caught.
+              <span className="block text-gold-400">It can&apos;t be proven.</span>
+            </h2>
+            <p className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-paper-dim">
+              Most systems detect tampering after the fact by comparing hashes.
+              Here there is nothing to compare: altered details produce a
+              different commitment, the proof simply fails to generate, and no
+              output exists to present. Forgery isn&apos;t flagged — it is
+              impossible to produce.
+            </p>
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------------------
+            Live today vs. planned — stated separately, on purpose
+        --------------------------------------------------------------- */}
+        <section className="border-t border-paper/10 px-5 py-24 sm:px-8">
+          <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2">
+            <div>
+              <h2 className="flex items-center gap-2 text-xl font-semibold text-paper">
+                <span className="inline-flex h-2 w-2 rounded-full bg-gold-500" aria-hidden />
+                Working today
+              </h2>
+              <ul className="mt-6 space-y-4">
+                {SHIPPING_NOW.map((item) => (
+                  <li key={item} className="flex gap-3 text-paper-dim">
+                    <IconCheck
+                      className="mt-1 h-4 w-4 shrink-0 text-gold-500"
+                      aria-hidden
+                    />
+                    <span className="text-pretty leading-relaxed">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="rounded-lg bg-white p-10 text-center text-slate-950">
-              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                <IconLock className="h-6 w-6" />
-              </span>
-              <p className="mt-4 font-semibold">Proof Generated</p>
-              <p className="mt-1 text-sm text-slate-500">
-                Validity: True | Data: Hidden
-              </p>
+
+            <div>
+              <h2 className="flex items-center gap-2 text-xl font-semibold text-paper-muted">
+                <span
+                  className="inline-flex h-2 w-2 rounded-full border border-paper-muted"
+                  aria-hidden
+                />
+                Next
+              </h2>
+              <ul className="mt-6 space-y-4">
+                {NEXT_UP.map((item) => (
+                  <li key={item} className="flex gap-3 text-paper-muted">
+                    <span
+                      className="mt-2 h-1 w-1 shrink-0 rounded-full bg-paper-muted"
+                      aria-hidden
+                    />
+                    <span className="text-pretty leading-relaxed">{item}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </section>
 
-        <TrustStrip />
+        {/* ---------------------------------------------------------------
+            Closing call to action
+        --------------------------------------------------------------- */}
+        <section className="border-t border-paper/10 bg-ink-900 px-5 py-24 sm:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+              See it prove a degree without revealing one.
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-paper-dim">
+              Verify a real credential, then verify it again with the GPA
+              disclosed. Same record on the ledger. Two different answers.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href="/verify"
+                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-gold-500 px-7 text-sm font-semibold text-ink-950 transition hover:bg-gold-400"
+              >
+                Try the verification portal
+                <IconArrowRight
+                  className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                  aria-hidden
+                />
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="border-t border-slate-200 px-5 py-8 sm:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-semibold text-slate-950">AcadVerify</p>
-            <p>
-              &copy; {new Date().getFullYear()} AcadVerify. Built on Midnight
-              Testnet.
-            </p>
+      <footer className="border-t border-paper/10 px-5 py-12 sm:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-lg font-semibold text-paper">AcadVerify</p>
+              <p className="mt-1 text-sm text-paper-muted">
+                Privacy-preserving academic credentials, built on Midnight.
+              </p>
+            </div>
+            <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <Link href="/verify" className="text-paper-muted transition hover:text-gold-300">
+                Verify
+              </Link>
+              <Link href="/dashboard" className="text-paper-muted transition hover:text-gold-300">
+                Universities
+              </Link>
+              <Link href="/institutions" className="text-paper-muted transition hover:text-gold-300">
+                Institutions
+              </Link>
+              <a
+                href="https://docs.midnight.network/"
+                className="text-paper-muted transition hover:text-gold-300"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Midnight docs
+              </a>
+            </nav>
           </div>
-          <div className="flex flex-wrap gap-4">
-            <a href="#" className="hover:text-slate-950 hover:underline">
-              Privacy Policy
-            </a>
-            <a href="#" className="hover:text-slate-950 hover:underline">
-              Terms of Service
-            </a>
-            <a href="#" className="hover:text-slate-950 hover:underline">
-              Documentation
-            </a>
-            <a href="#" className="hover:text-slate-950 hover:underline">
-              Support
-            </a>
-          </div>
+
+          {/* Sourced so the figures above are checkable rather than asserted. */}
+          <p className="mt-10 border-t border-paper/10 pt-6 text-xs leading-relaxed text-paper-muted">
+            Fraud figures: applicant misrepresentation and the $21B industry
+            estimate via Parchment&apos;s analysis of diploma mills and academic
+            fraud; digital forgery growth via 2024 document-fraud reporting.
+            Prototype built for the MLH Midnight Hackathon.
+          </p>
         </div>
       </footer>
-    </>
+    </div>
   );
 }

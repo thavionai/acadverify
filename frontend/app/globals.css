@@ -1,13 +1,62 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Palette
+   ---------------------------------------------------------------------------
+   Black + gold + paper-white, drawn from the hero artwork. The register is
+   deliberately academic (diplomas, wax seals, institutional gravitas) rather
+   than the blue/purple gradient most blockchain products reach for.
+
+   RED IS NOT A BRAND COLOUR. In this product red already means REVOKED on the
+   verification page, which shows four mutually exclusive states. If red also
+   appeared as decorative chrome, a verifier could not tell "brand accent" from
+   "this credential is revoked". Red therefore lives only inside photography
+   (the wax seals in the artwork) and inside status components — never in
+   buttons, links, borders, or headings.
+--------------------------------------------------------------------------- */
+
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
+
+  /* Ink — near-black, very slightly warm so gold does not read as green on it */
+  --ink-950: #08080a;
+  --ink-900: #0f0f12;
+  --ink-800: #17171c;
+  --ink-700: #24242b;
+
+  /* Gold. Contrast on --ink-950: ~7.8:1, so it clears AA for body text and AAA
+     for large text. On white it is roughly 2.3:1 and fails everything — gold is
+     for dark grounds only. */
+  --gold-500: #c9a227;
+  --gold-400: #dbb94a;
+  --gold-300: #e8c766;
+  --gold-700: #8b6f1a;
+
+  /* Paper — warm white matching the scrolls in the artwork. ~19:1 on ink. */
+  --paper: #faf8f3;
+  --paper-dim: #d8d4c8;
+  --paper-muted: #a8a396;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-ink-950: var(--ink-950);
+  --color-ink-900: var(--ink-900);
+  --color-ink-800: var(--ink-800);
+  --color-ink-700: var(--ink-700);
+
+  --color-gold-300: var(--gold-300);
+  --color-gold-400: var(--gold-400);
+  --color-gold-500: var(--gold-500);
+  --color-gold-700: var(--gold-700);
+
+  --color-paper: var(--paper);
+  --color-paper-dim: var(--paper-dim);
+  --color-paper-muted: var(--paper-muted);
+
   --font-sans: "Inter", ui-sans-serif, system-ui, Arial, Helvetica, sans-serif;
   --font-mono: "IBM Plex Mono", "Courier New", Courier, monospace;
 }
@@ -24,7 +73,33 @@ select {
   font: inherit;
 }
 
-/* Monochrome focus ring used everywhere instead of a brand color */
+/* ---------------------------------------------------------------------------
+   Focus
+
+   This previously read `:focus-visible { outline: none }` with no replacement,
+   which removed the keyboard focus indicator across the entire application —
+   a straight WCAG 2.4.7 failure that made the app unusable without a mouse.
+   Restored as a visible ring that works on both light and dark grounds.
+--------------------------------------------------------------------------- */
 :focus-visible {
-  outline: none;
+  outline: 2px solid var(--gold-500);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* On light surfaces the gold ring is too low-contrast to rely on, so darken it. */
+.bg-white :focus-visible,
+.bg-slate-50 :focus-visible {
+  outline-color: var(--ink-900);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
