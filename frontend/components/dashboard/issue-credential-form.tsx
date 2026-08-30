@@ -132,7 +132,7 @@ export function IssueCredentialForm() {
 
   if (institution.status === "loading" || institution.status === "idle") {
     return (
-      <div className="h-40 animate-pulse rounded-lg border border-slate-200 bg-slate-50" />
+      <div className="h-40 animate-pulse rounded-lg border border-paper/10 bg-ink-800" />
     );
   }
 
@@ -162,19 +162,19 @@ export function IssueCredentialForm() {
 
   return (
     <section>
-      <h1 className="text-2xl font-semibold text-slate-950">Issue New Credential</h1>
-      <p className="mt-1 text-sm text-slate-600">
+      <h1 className="text-2xl font-semibold text-paper">Issue New Credential</h1>
+      <p className="mt-1 text-sm text-paper-dim">
         Complete the form below to cryptographically hash and mint a new
         academic credential.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 max-w-3xl rounded-lg border border-slate-200 p-6" noValidate>
+      <form onSubmit={handleSubmit} className="mt-6 max-w-3xl rounded-lg border border-paper/10 p-6" noValidate>
         <div className="grid gap-5 sm:grid-cols-2">
           {FIELD_CONFIG.map((field) => {
             const isHashed = ON_CHAIN_HASHED_FIELDS.includes(field.key);
             return (
               <div key={field.key} className={field.span ? "sm:col-span-2" : ""}>
-                <label htmlFor={field.key} className="text-sm font-medium text-slate-800">
+                <label htmlFor={field.key} className="text-sm font-medium text-paper">
                   {field.label}
                 </label>
                 <div className="relative mt-2">
@@ -188,12 +188,12 @@ export function IssueCredentialForm() {
                     value={input[field.key]}
                     onChange={(event) => updateField(field.key, event.target.value)}
                     placeholder={field.placeholder}
-                    className="min-h-12 w-full rounded-md border border-slate-300 bg-slate-50 px-3 pr-10 text-base text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:bg-white focus:ring-2 focus:ring-slate-950/10 disabled:opacity-60"
+                    className="min-h-12 w-full rounded-md border border-paper/20 bg-ink-800 px-3 pr-10 text-base text-paper outline-none transition placeholder:text-paper-muted focus:border-gold-500 focus:bg-ink-700 focus:ring-2 focus:ring-gold-500/10 disabled:opacity-60"
                   />
                   <span
                     aria-hidden
                     title={isHashed ? "Hashed into the on-chain commitment" : "Stored off-chain, not on the ledger"}
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-paper-muted"
                   >
                     {isHashed ? (
                       <IconLock className="h-4 w-4" />
@@ -207,7 +207,7 @@ export function IssueCredentialForm() {
           })}
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-4 text-xs text-slate-500">
+        <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-paper/10 pt-4 text-xs text-paper-muted">
           <span className="flex items-center gap-1.5">
             <IconLock className="h-3.5 w-3.5" aria-hidden /> Hashed into the
             on-chain commitment
@@ -221,7 +221,7 @@ export function IssueCredentialForm() {
         {formState.phase === "error" ? (
           <p
             role="alert"
-            className="mt-4 rounded-md border border-slate-950 bg-white px-3 py-2 text-sm text-slate-900"
+            className="mt-4 rounded-md border border-danger-500/60 bg-danger-500/10 px-3 py-2 text-sm text-paper"
           >
             {formState.message}
           </p>
@@ -234,7 +234,7 @@ export function IssueCredentialForm() {
             <button
               type="submit"
               disabled={!isValid}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-slate-950 px-6 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-gold-500 px-6 text-sm font-semibold text-ink-950 transition hover:bg-gold-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 disabled:cursor-not-allowed disabled:bg-ink-700 disabled:text-paper-muted"
             >
               <IconAward className="h-4 w-4" aria-hidden />
               Submit &amp; Mint Credential
@@ -248,9 +248,9 @@ export function IssueCredentialForm() {
 
 function GatedPanel({ title, description }: { title: string; description: string }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-8 text-center">
-      <h1 className="text-lg font-semibold text-slate-950">{title}</h1>
-      <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">{description}</p>
+    <section className="rounded-lg border border-paper/10 bg-ink-900 p-8 text-center">
+      <h1 className="text-lg font-semibold text-paper">{title}</h1>
+      <p className="mx-auto mt-2 max-w-md text-sm text-paper-dim">{description}</p>
     </section>
   );
 }
@@ -269,18 +269,18 @@ function IssueProgress({
 
   return (
     <div
-      className="rounded-lg border border-dotted border-slate-400 bg-white p-4"
+      className="rounded-lg border border-dotted border-paper/25 bg-ink-900 p-4"
       role="status"
       aria-live="polite"
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-slate-950">
+        <p className="text-sm font-semibold text-paper">
           Issuing credential&hellip; {(elapsedMs / 1000).toFixed(0)}s
         </p>
         <button
           type="button"
           onClick={onCancel}
-          className="text-sm font-semibold text-slate-950 underline-offset-4 hover:underline"
+          className="text-sm font-semibold text-paper underline-offset-4 hover:underline"
         >
           Cancel
         </button>
@@ -292,19 +292,19 @@ function IssueProgress({
               aria-hidden
               className={`h-2 w-2 shrink-0 rounded-full ${
                 index < activeIndex
-                  ? "bg-slate-950"
+                  ? "bg-gold-500"
                   : index === activeIndex
-                    ? "animate-pulse bg-slate-950"
-                    : "bg-slate-200"
+                    ? "animate-pulse bg-gold-500"
+                    : "bg-paper/15"
               }`}
             />
-            <span className={index <= activeIndex ? "text-slate-950" : "text-slate-400"}>
+            <span className={index <= activeIndex ? "text-paper" : "text-paper-muted"}>
               {phase.label}
             </span>
           </li>
         ))}
       </ol>
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 text-xs text-paper-muted">
         Proof generation and network conditions vary — these steps are an
         estimate, not a guarantee. This request is still in flight either way.
       </p>
@@ -320,12 +320,12 @@ function IssueSuccess({
   onIssueAnother: () => void;
 }) {
   return (
-    <section className="max-w-3xl rounded-lg border border-slate-950 bg-white p-6">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+    <section className="max-w-3xl rounded-lg border border-gold-500 bg-ink-900 p-6">
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-paper-muted">
         Credential issued
       </p>
-      <h2 className="mt-2 text-2xl font-semibold text-slate-950">Ready to share</h2>
-      <p className="mt-2 text-sm text-slate-600">
+      <h2 className="mt-2 text-2xl font-semibold text-paper">Ready to share</h2>
+      <p className="mt-2 text-sm text-paper-dim">
         Print or send this to the student. Scanning the QR code opens the public
         verification page for this credential.
       </p>
@@ -335,7 +335,7 @@ function IssueSuccess({
           only copy a link and the issue -> certificate -> scan path could not
           be completed from the UI at all. */}
       {credential.qrCodeUrl ? (
-        <div className="mt-5 flex justify-center rounded-md border border-slate-200 p-4">
+        <div className="mt-5 flex justify-center rounded-md border border-paper/10 p-4">
           {/* Plain <img>, not next/image: this is a runtime-generated URL on a
               storage host that is not in the Next image config. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -349,44 +349,44 @@ function IssueSuccess({
         </div>
       ) : null}
 
-      <dl className="mt-5 grid gap-4 rounded-md border border-slate-200 p-4 sm:grid-cols-2">
+      <dl className="mt-5 grid gap-4 rounded-md border border-paper/10 p-4 sm:grid-cols-2">
         <div>
-          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-paper-muted">
             Credential ID
           </dt>
-          <dd className="mt-1 break-all font-mono text-sm text-slate-950">{credential.id}</dd>
+          <dd className="mt-1 break-all font-mono text-sm text-paper">{credential.id}</dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-paper-muted">
             Commitment Hash
           </dt>
-          <dd className="mt-1 break-all font-mono text-sm text-slate-950">
+          <dd className="mt-1 break-all font-mono text-sm text-paper">
             {credential.commitmentHash}
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+          <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-paper-muted">
             Transaction ID
           </dt>
-          <dd className="mt-1 break-all font-mono text-sm text-slate-950">{credential.txId}</dd>
+          <dd className="mt-1 break-all font-mono text-sm text-paper">{credential.txId}</dd>
         </div>
         {/* Only render when there is actually a CID. This build has no IPFS,
             so the backend always returns "" and the row rendered as a label
             with nothing under it — which reads as broken rather than absent. */}
         {credential.metadataCid ? (
           <div>
-            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-paper-muted">
               Metadata CID
             </dt>
-            <dd className="mt-1 break-all font-mono text-sm text-slate-950">
+            <dd className="mt-1 break-all font-mono text-sm text-paper">
               {credential.metadataCid}
             </dd>
           </div>
         ) : null}
       </dl>
 
-      <div className="mt-4 flex flex-col gap-2 rounded-md border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="break-all font-mono text-sm text-slate-950">{credential.verifyUrl}</p>
+      <div className="mt-4 flex flex-col gap-2 rounded-md border border-paper/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="break-all font-mono text-sm text-paper">{credential.verifyUrl}</p>
         <CopyButton text={credential.verifyUrl} label="Copy Link" />
       </div>
 
@@ -394,13 +394,13 @@ function IssueSuccess({
         <button
           type="button"
           onClick={onIssueAnother}
-          className="inline-flex min-h-11 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
+          className="inline-flex min-h-11 items-center justify-center rounded-md bg-gold-500 px-4 text-sm font-semibold text-ink-950 transition hover:bg-gold-400"
         >
           Issue another credential
         </button>
         <a
           href="/dashboard/registry"
-          className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-50"
+          className="inline-flex min-h-11 items-center justify-center rounded-md border border-paper/20 px-4 text-sm font-semibold text-paper transition hover:bg-ink-850"
         >
           View in Registry
         </a>

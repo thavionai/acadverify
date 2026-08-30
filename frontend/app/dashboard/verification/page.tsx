@@ -25,8 +25,8 @@ export default function InternalVerificationPage() {
 
   return (
     <section>
-      <h1 className="text-2xl font-semibold text-slate-950">Verification</h1>
-      <p className="mt-1 max-w-xl text-sm text-slate-600">
+      <h1 className="text-2xl font-semibold text-paper">Verification</h1>
+      <p className="mt-1 max-w-xl text-sm text-paper-dim">
         Run a quick internal check on a credential your institution issued —
         useful for confirming a certificate before it goes out, without
         leaving the dashboard.
@@ -36,42 +36,42 @@ export default function InternalVerificationPage() {
         <div className="relative flex-1">
           <IconSearch
             aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-paper-muted"
           />
           <input
             value={credentialId}
             onChange={(event) => setCredentialId(event.target.value)}
             placeholder="Enter Credential ID"
-            className="min-h-12 w-full rounded-md border border-slate-300 bg-white pl-10 pr-3 text-base text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
+            className="min-h-12 w-full rounded-md border border-paper/20 bg-ink-800 pl-10 pr-3 text-base text-paper outline-none transition placeholder:text-paper-muted focus:border-gold-500 focus:ring-2 focus:ring-gold-500/10"
           />
         </div>
         <button
           type="submit"
           disabled={!credentialId.trim() || isLoading}
-          className="inline-flex min-h-12 items-center justify-center rounded-md bg-slate-950 px-6 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="inline-flex min-h-12 items-center justify-center rounded-md bg-gold-500 px-6 text-sm font-semibold text-ink-950 transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:bg-ink-700 disabled:text-paper-muted"
         >
           {isLoading ? "Checking\u2026" : "Verify"}
         </button>
       </form>
 
       {isLoading ? (
-        <p className="mt-6 text-sm text-slate-600" role="status" aria-live="polite">
+        <p className="mt-6 text-sm text-paper-dim" role="status" aria-live="polite">
           Generating zero-knowledge proof&hellip;
         </p>
       ) : null}
 
       {result?.ok ? (
-        <div className="mt-6 max-w-xl rounded-lg border border-slate-200 p-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-slate-500">
+        <div className="mt-6 max-w-xl rounded-lg border border-paper/10 p-5">
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-paper-muted">
             {result.data.status.replace(/_/g, " ")}
           </p>
           <dl className="mt-4 grid gap-3 sm:grid-cols-2">
             {Object.entries(result.data.disclosed).map(([key, value]) => (
               <div key={key}>
-                <dt className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <dt className="text-xs font-semibold uppercase tracking-[0.1em] text-paper-muted">
                   {formatLabel(key)}
                 </dt>
-                <dd className="text-sm text-slate-950">
+                <dd className="text-sm text-paper">
                   {value === null || value === "" ? "Not disclosed" : value}
                 </dd>
               </div>
@@ -81,7 +81,7 @@ export default function InternalVerificationPage() {
       ) : null}
 
       {result && !result.ok ? (
-        <p role="alert" className="mt-6 max-w-xl rounded-lg border border-dotted border-slate-400 p-4 text-sm text-slate-700">
+        <p role="alert" className="mt-6 max-w-xl rounded-lg border border-dotted border-paper/25 p-4 text-sm text-danger-400">
           {result.error.message}
         </p>
       ) : null}

@@ -13,92 +13,46 @@ import type { WalletState } from "@/lib/wallet";
 const NETWORK_LABEL =
   process.env.NEXT_PUBLIC_MIDNIGHT_NETWORK || "Local Devnet";
 
-/**
- * `dark` is for the landing page, where this sits in a transparent header over
- * the black/gold artwork — the slate palette below is near-invisible there.
- * Every other surface (the whole dashboard) is `light`, which is the default,
- * so nothing outside the landing page changes.
- */
-type Tone = "light" | "dark";
-
-const STYLES: Record<
-  Tone,
-  {
-    badge: string;
-    badgeDot: string;
-    chip: string;
-    chipAddress: string;
-    primary: string;
-    disabled: string;
-    quietText: string;
-    link: string;
-    focus: string;
-  }
-> = {
-  light: {
-    badge: "border-slate-300 text-slate-600",
-    badgeDot: "bg-slate-950",
-    chip: "border-slate-300 bg-white text-slate-950",
-    chipAddress: "text-slate-500",
-    primary: "bg-slate-950 text-white hover:bg-slate-800",
-    disabled: "bg-slate-400 text-white",
-    quietText: "text-slate-600",
-    link: "text-slate-950",
-    focus: "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950",
-  },
-  dark: {
-    badge: "border-paper/25 text-paper-dim",
-    badgeDot: "bg-gold-500",
-    chip: "border-paper/25 bg-paper/5 text-paper",
-    chipAddress: "text-paper-muted",
-    primary: "bg-gold-500 text-ink-950 hover:bg-gold-400",
-    disabled: "bg-paper/20 text-paper-muted",
-    quietText: "text-paper-dim",
-    link: "text-gold-300",
-    focus: "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500",
-  },
-};
+// This briefly carried a `tone` prop, because the slate palette it was built
+// from was invisible against the landing page's black hero. Every surface in
+// the application is dark now, so the two tones had quietly converged on the
+// same values — the prop is deleted rather than left as a fork that no longer
+// forks.
+const FOCUS =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500";
 
 export function WalletConnectButton({
   state,
   onConnect,
   onDisconnect,
   showNetworkBadge = true,
-  tone = "light",
 }: {
   state: WalletState;
   onConnect: () => void;
   onDisconnect: () => void;
   showNetworkBadge?: boolean;
-  tone?: Tone;
 }) {
-  const s = STYLES[tone];
-
   return (
     <div className="flex flex-wrap items-center gap-2">
       {showNetworkBadge ? (
-        <span
-          className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold uppercase tracking-[0.08em] ${s.badge}`}
-        >
-          <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${s.badgeDot}`} />
+        <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-paper/20 px-3 text-xs font-semibold uppercase tracking-[0.08em] text-paper-dim">
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-gold-500" />
           {NETWORK_LABEL}
         </span>
       ) : null}
 
       {state.status === "connected" ? (
         <div className="flex items-center gap-2">
-          <span
-            className={`inline-flex min-h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium ${s.chip}`}
-          >
+          <span className="inline-flex min-h-9 items-center gap-2 rounded-md border border-paper/20 bg-ink-900 px-3 text-sm font-medium text-paper">
             {state.connection.walletName}
-            <span className={`font-mono ${s.chipAddress}`}>
+            <span className="font-mono text-paper-muted">
               {truncateMiddle(state.connection.address, 5)}
             </span>
           </span>
           <button
             type="button"
             onClick={onDisconnect}
-            className={`text-sm font-semibold underline-offset-4 hover:underline ${s.quietText} ${s.focus}`}
+            className={`text-sm font-semibold text-paper-dim underline-offset-4 transition hover:text-paper hover:underline ${FOCUS}`}
           >
             Disconnect
           </button>
@@ -109,7 +63,7 @@ export function WalletConnectButton({
         <button
           type="button"
           onClick={onConnect}
-          className={`inline-flex min-h-9 items-center justify-center rounded-md px-4 text-sm font-semibold transition ${s.primary} ${s.focus}`}
+          className={`inline-flex min-h-9 items-center justify-center rounded-md bg-gold-500 px-4 text-sm font-semibold text-ink-950 transition hover:bg-gold-400 ${FOCUS}`}
         >
           Connect Wallet
         </button>
@@ -119,27 +73,27 @@ export function WalletConnectButton({
         <button
           type="button"
           disabled
-          className={`inline-flex min-h-9 cursor-not-allowed items-center justify-center rounded-md px-4 text-sm font-semibold ${s.disabled}`}
+          className="inline-flex min-h-9 cursor-not-allowed items-center justify-center rounded-md bg-ink-700 px-4 text-sm font-semibold text-paper-muted"
         >
           Connecting&hellip;
         </button>
       ) : null}
 
       {state.status === "unavailable" ? (
-        <div className={`flex flex-wrap items-center gap-2 text-sm ${s.quietText}`}>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-paper-dim">
           <span>No Midnight wallet detected.</span>
           <a
             href="https://docs.midnight.network/develop/tutorial/using/lace-wallet"
             target="_blank"
             rel="noreferrer"
-            className={`font-semibold underline-offset-4 hover:underline ${s.link} ${s.focus}`}
+            className={`font-semibold text-gold-300 underline-offset-4 hover:underline ${FOCUS}`}
           >
             Install Lace
           </a>
           <button
             type="button"
             onClick={onConnect}
-            className={`font-semibold underline-offset-4 hover:underline ${s.link} ${s.focus}`}
+            className={`font-semibold text-gold-300 underline-offset-4 hover:underline ${FOCUS}`}
           >
             Retry
           </button>
@@ -148,11 +102,13 @@ export function WalletConnectButton({
 
       {state.status === "error" ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className={s.quietText}>{state.message}</span>
+          {/* This is our failure to reach a wallet, not a credential verdict,
+              so it stays neutral. Red here would read as revoked or forged. */}
+          <span className="text-paper-dim">{state.message}</span>
           <button
             type="button"
             onClick={onConnect}
-            className={`font-semibold underline-offset-4 hover:underline ${s.link} ${s.focus}`}
+            className={`font-semibold text-gold-300 underline-offset-4 hover:underline ${FOCUS}`}
           >
             Retry
           </button>

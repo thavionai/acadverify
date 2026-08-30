@@ -46,7 +46,7 @@ const DISCLOSURE_DEMO = {
 export default function Home() {
   return (
     <div className="relative bg-ink-950 text-paper">
-      <PublicNav variant="dark" />
+      <PublicNav variant="hero" />
       <main>
         {/* ---------------------------------------------------------------
             Hero

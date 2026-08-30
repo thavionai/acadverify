@@ -96,13 +96,13 @@ export function VerifyResult({
   return (
     <>
       <PublicNav />
-      <main className="min-h-screen bg-slate-50 px-5 py-8 text-slate-950 sm:px-8">
+      <main className="min-h-screen flex-1 bg-ink-950 px-5 py-8 text-paper sm:px-8">
         <section className="mx-auto w-full max-w-6xl">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Link
                 href="/verify"
-                className="text-sm font-semibold text-slate-950 underline-offset-4 hover:underline"
+                className="text-sm font-semibold text-paper underline-offset-4 hover:underline"
               >
                 &larr; Verify another credential
               </Link>
@@ -116,7 +116,7 @@ export function VerifyResult({
             />
           </div>
 
-          <p className="mt-4 break-all text-sm text-slate-600">
+          <p className="mt-4 break-all text-sm text-paper-dim">
             Credential ID: <span className="font-mono">{credentialId}</span>
           </p>
 
@@ -146,17 +146,17 @@ function DisclosureToggle({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <fieldset className="rounded-lg border border-slate-200 bg-white p-2">
+    <fieldset className="rounded-lg border border-paper/10 bg-ink-900 p-2">
       <legend className="sr-only">GPA disclosure</legend>
       <div className="grid grid-cols-2 gap-1">
         <button
           type="button"
           aria-pressed={!discloseGpa}
           onClick={() => onChange(false)}
-          className={`min-h-11 rounded-md px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 ${
+          className={`min-h-11 rounded-md px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 ${
             !discloseGpa
-              ? "bg-slate-950 text-white"
-              : "bg-white text-slate-700 hover:bg-slate-100"
+              ? "bg-gold-500 text-ink-950"
+              : "bg-ink-900 text-paper-dim hover:bg-ink-800"
           }`}
         >
           GPA Withheld
@@ -165,10 +165,10 @@ function DisclosureToggle({
           type="button"
           aria-pressed={discloseGpa}
           onClick={() => onChange(true)}
-          className={`min-h-11 rounded-md px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 ${
+          className={`min-h-11 rounded-md px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 ${
             discloseGpa
-              ? "bg-slate-950 text-white"
-              : "bg-white text-slate-700 hover:bg-slate-100"
+              ? "bg-gold-500 text-ink-950"
+              : "bg-ink-900 text-paper-dim hover:bg-ink-800"
           }`}
         >
           GPA Disclosed
@@ -181,17 +181,17 @@ function DisclosureToggle({
 function ProofLoading() {
   return (
     <div
-      className="mt-8 rounded-lg border border-dotted border-slate-400 bg-white p-5"
+      className="mt-8 rounded-lg border border-dotted border-paper/25 bg-ink-900 p-5"
       role="status"
       aria-live="polite"
     >
       <div className="flex items-start gap-4">
-        <div className="mt-1 h-4 w-4 shrink-0 animate-pulse rounded-full bg-slate-950" />
+        <div className="mt-1 h-4 w-4 shrink-0 animate-pulse rounded-full bg-gold-500" />
         <div>
-          <h2 className="text-lg font-semibold text-slate-950">
+          <h2 className="text-lg font-semibold text-paper">
             Generating zero-knowledge proof
           </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-paper-dim">
             Verification is CPU-bound and may take longer than a normal lookup.
             This page is waiting for the proof server, indexer, and node to
             respond.
@@ -207,16 +207,16 @@ function VerifiedContent({ result }: { result: VerificationResult }) {
 
   return (
     <div className="mt-8 space-y-6">
-      <section className="rounded-lg border border-slate-200 bg-white p-5">
+      <section className="rounded-lg border border-paper/10 bg-ink-900 p-5">
         <StatusBadge
           label={result.status.replace(/_/g, " ")}
           tone={status.badgeTone}
           icon={<status.icon className="h-full w-full" />}
         />
-        <h2 className="mt-3 text-2xl font-semibold tracking-normal text-slate-950">
+        <h2 className="mt-3 text-2xl font-semibold tracking-normal text-paper">
           {status.label}
         </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">{status.summary}</p>
+        <p className="mt-2 text-sm leading-6 text-paper-dim">{status.summary}</p>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
@@ -238,7 +238,7 @@ function VerifiedContent({ result }: { result: VerificationResult }) {
 
             if (disclosedEntries.length === 0) {
               return (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-paper-dim">
                   No fields were disclosed for this verification.
                 </p>
               );
@@ -249,12 +249,12 @@ function VerifiedContent({ result }: { result: VerificationResult }) {
                 {disclosedEntries.map(([key, value]) => (
                   <div
                     key={key}
-                    className="flex flex-col gap-1 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0"
+                    className="flex flex-col gap-1 border-b border-paper/10 pb-3 last:border-b-0 last:pb-0"
                   >
-                    <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-paper-muted">
                       {formatLabel(key)}
                     </dt>
-                    <dd className="break-words text-base font-medium text-slate-950">
+                    <dd className="break-words text-base font-medium text-paper">
                       {value}
                     </dd>
                   </div>
@@ -270,14 +270,14 @@ function VerifiedContent({ result }: { result: VerificationResult }) {
               {result.withheld.map((field) => (
                 <li
                   key={field}
-                  className="rounded-md border border-dashed border-slate-400 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+                  className="rounded-md border border-dashed border-paper/25 bg-ink-900 px-3 py-2 text-sm font-semibold text-paper"
                 >
                   {formatLabel(field)}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-paper-dim">
               No fields were withheld for this verification.
             </p>
           )}
@@ -297,8 +297,8 @@ function FieldPanel({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="text-lg font-semibold tracking-normal text-slate-950">
+    <section className="rounded-lg border border-paper/10 bg-ink-900 p-5 shadow-sm">
+      <h2 className="text-lg font-semibold tracking-normal text-paper">
         {title}
       </h2>
       <div className="mt-4">{children}</div>
@@ -313,13 +313,13 @@ function ProofPanel({ result }: { result: VerificationResult }) {
   );
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-lg border border-paper/10 bg-ink-900 p-5 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold tracking-normal text-slate-950">
+          <h2 className="text-lg font-semibold tracking-normal text-paper">
             Midnight proof details
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-paper-dim">
             Midnight does not use EVM explorer links. These values can be checked
             against the indexer.
           </p>
@@ -345,7 +345,7 @@ function ProofPanel({ result }: { result: VerificationResult }) {
         />
       </dl>
 
-      <pre className="mt-5 overflow-x-auto rounded-md bg-slate-950 p-4 text-sm leading-6 text-slate-50">
+      <pre className="mt-5 overflow-x-auto rounded-md border border-paper/10 bg-ink-800 p-4 text-sm leading-6 text-paper-dim">
         <code>{indexerQuery}</code>
       </pre>
     </section>
@@ -355,10 +355,10 @@ function ProofPanel({ result }: { result: VerificationResult }) {
 function ProofDatum({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+      <dt className="text-xs font-semibold uppercase tracking-[0.14em] text-paper-muted">
         {label}
       </dt>
-      <dd className="mt-1 break-all font-mono text-sm text-slate-950">{value}</dd>
+      <dd className="mt-1 break-all font-mono text-sm text-paper">{value}</dd>
     </div>
   );
 }
@@ -379,23 +379,23 @@ function ServiceError({
 
   return (
     <section
-      className="mt-8 rounded-lg border border-dotted border-slate-400 bg-white p-5"
+      className="mt-8 rounded-lg border border-dotted border-paper/25 bg-ink-900 p-5"
       role="alert"
     >
       <div className="flex items-start gap-3">
-        <IconWifiOff className="mt-1 h-6 w-6 shrink-0 text-slate-500" aria-hidden />
+        <IconWifiOff className="mt-1 h-6 w-6 shrink-0 text-paper-muted" aria-hidden />
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-paper-muted">
             {isInfrastructureError ? "Service error" : code}
           </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-normal text-slate-950">
+          <h2 className="mt-2 text-2xl font-semibold tracking-normal text-paper">
             Verification could not be completed
           </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-paper-dim">
             {message}
           </p>
           {requestId ? (
-            <p className="mt-4 break-all font-mono text-xs text-slate-500">
+            <p className="mt-4 break-all font-mono text-xs text-paper-muted">
               Request ID: {requestId}
             </p>
           ) : null}
