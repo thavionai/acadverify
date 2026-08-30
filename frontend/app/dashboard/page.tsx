@@ -19,15 +19,26 @@ export default function DashboardPage() {
     if (!wallet || !isAuthorized) return;
 
     const controller = new AbortController();
-    listCredentials(wallet, { signal: controller.signal }).then((result) => {
-      if (!result.ok) return;
-      const active = result.data.items.filter((item) => item.status === "ACTIVE").length;
-      setCounts({
-        total: result.data.total,
-        active,
-        revoked: result.data.total - active,
+    listCredentials(wallet, { signal: controller.signal })
+      .then((result) => {
+        if (!result.ok) return;
+        const active = result.data.items.filter((item) => item.status === "ACTIVE").length;
+        setCounts({
+          total: result.data.total,
+          active,
+          revoked: result.data.total - active,
+        });
+      })
+      // lib/api.ts deliberately re-throws AbortError so callers can tell a
+      // cancelled request from a failed one — which means every caller has to
+      // catch it. This one did not, so the cleanup below surfaced an unhandled
+      // "signal is aborted without reason" on every remount (and on any
+      // navigation away while the request was in flight). The other three
+      // AbortController users already handle it; this file was missed.
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        throw error;
       });
-    });
 
     return () => controller.abort();
   }, [wallet, isAuthorized]);
