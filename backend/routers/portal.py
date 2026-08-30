@@ -184,9 +184,11 @@ async def issue_credential_portal(
     payload: PortalIssueRequest,
     issuer: str = Depends(require_issuer_address),
 ):
-    if not get_settings().issuer_pk:
-        return _api_error(503, "CHAIN_UNAVAILABLE", "Issuer signing key is not configured.")
-
+    # No ISSUER_PK check any more: the backend neither holds nor forwards a
+    # signing key. chain-service derives this institution's key from `issuer`,
+    # which also removes a failure mode nobody would have caught — the env var
+    # happened to equal the mock adapter's hardcoded issuer, so issuance worked
+    # in mock and would have failed the circuit's assert in live.
     credential_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
     try:
@@ -210,6 +212,10 @@ async def issue_credential_portal(
         university_id=payload.institution,
         credential_type=payload.degree,
         witness=witness,
+        # The connected wallet IS the issuer identity. chain-service derives
+        # this institution's own signing key from it, so the credential is
+        # recorded on-chain as issued by this university and no other.
+        issuer_identity=issuer,
     )
 
     verify_url, qr_png = generate_qr_for_credential(credential_id)
@@ -222,6 +228,7 @@ async def issue_credential_portal(
     year_prefix = payload.graduationDate[:4]
     index_item = CredentialIndexItem(
         credential_id=credential_id,
+        issuer_address=issuer,
         university_id=payload.institution,
         status=CredentialStatus.ISSUED,
         created_at=now,
@@ -266,6 +273,16 @@ async def list_credentials(
     needle = search.strip().lower()
     out = []
     for item in sorted(items, key=lambda i: i.created_at, reverse=True):
+        # Scope to the caller. This endpoint scanned the whole table and
+        # returned every credential to any caller — a wallet that had never
+        # registered saw all of them — while the page above it reads
+        # "credentials your institution has issued".
+        #
+        # Rows written before issuer_address existed have no owner. They are
+        # hidden rather than shown to everyone: unknown ownership is not a
+        # reason to disclose another institution's credentials.
+        if item.issuer_address != issuer:
+            continue
         ui_status = _UI_STATUS.get(item.status, "ACTIVE")
         if status and status != "ALL" and ui_status != status:
             continue
@@ -364,7 +381,26 @@ class InstitutionProfileInput(BaseModel):
 
 @router.get("/institutions/me")
 async def get_institution_profile(issuer: str = Depends(require_issuer_address)):
-    return _institution_profiles.get(issuer, dict(_DEFAULT_PROFILE))
+    profile = _institution_profiles.get(issuer)
+    if profile is None:
+        return dict(_DEFAULT_PROFILE)
+
+    # A profile saved before issuer authorisation reached the chain claims
+    # AUTHORIZED on the strength of a database write alone. The ledger has
+    # never heard of it, so issuing will fail the circuit's
+    # `assert(issuers.member(pk))` with a confusing "not authorized on-chain".
+    #
+    # Report those as NOT_REGISTERED so the dashboard walks the operator back
+    # through setup, which now performs the real authorizeIssuer call. Reading
+    # a profile must not itself submit a transaction, so this heals on the next
+    # write rather than here.
+    if profile.get("status") == "AUTHORIZED" and not profile.get("issuerPk"):
+        logger.info(
+            "issuer=%s has a pre-authorization profile; reporting NOT_REGISTERED", issuer
+        )
+        return {**profile, "status": "NOT_REGISTERED"}
+
+    return profile
 
 
 @router.put("/institutions/me")
@@ -372,8 +408,27 @@ async def save_institution_profile(
     payload: InstitutionProfileInput,
     issuer: str = Depends(require_issuer_address),
 ):
-    # Instant approval is a demo behavior; a real flow would go through
-    # PENDING_REVIEW and an on-chain authorizeIssuer call.
+    # Registering an institution now AUTHORISES IT ON-CHAIN.
+    #
+    # This used to write `status: "AUTHORIZED"` to a JSON file and stop there.
+    # authorizeIssuer was a real circuit with a real HTTP route that nothing
+    # ever called, so the dashboard said a university was authorised while the
+    # ledger had never heard of it. Approval is still instant (no human review
+    # step), but it is now backed by a transaction.
+    #
+    # The status only becomes AUTHORIZED if the chain call succeeds — a
+    # database row claiming authorisation the chain would reject is exactly
+    # the gap this closes.
+    try:
+        chain_result = await chain_service_client.authorize_issuer(issuer)
+    except Exception:
+        logger.exception("authorizeIssuer failed for issuer=%s", issuer)
+        return _api_error(
+            503,
+            "CHAIN_UNAVAILABLE",
+            "Could not authorize this institution on-chain. Nothing was saved; please retry.",
+        )
+
     profile = {
         "name": payload.name,
         "website": payload.website,
@@ -381,6 +436,9 @@ async def save_institution_profile(
         "country": payload.country,
         "status": "AUTHORIZED",
         "submittedAt": datetime.now(timezone.utc).isoformat(),
+        # Evidence a judge (or an auditor) can check against the ledger.
+        "issuerPk": chain_result.get("issuerPk", ""),
+        "authorizationTxId": chain_result.get("txId", ""),
     }
     _institution_profiles[issuer] = profile
     _save_profiles(_institution_profiles)

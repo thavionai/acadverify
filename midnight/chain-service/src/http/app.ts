@@ -55,16 +55,16 @@ export function createApp(adapter: ChainAdapter, config: Config, logger: Logger)
   app.post(
     "/chain/authorize-issuer",
     h(async (req, res) => {
-      const { issuerPk } = AuthorizeIssuerRequestSchema.parse(req.body);
-      res.status(200).json(await adapter.authorizeIssuer(issuerPk));
+      const identity = AuthorizeIssuerRequestSchema.parse(req.body);
+      res.status(200).json(await adapter.authorizeIssuer(identity));
     }),
   );
 
   app.post(
     "/chain/issue",
     h(async (req, res) => {
-      const { credentialId, fields } = IssueRequestSchema.parse(req.body);
-      const result = await adapter.issue(credentialId, fields);
+      const { credentialId, institutionId, fields } = IssueRequestSchema.parse(req.body);
+      const result = await adapter.issue(credentialId, institutionId, fields);
       logger.info({ credentialId, txId: result.txId }, "credential issued");
       res.status(201).json(result);
     }),
@@ -73,8 +73,8 @@ export function createApp(adapter: ChainAdapter, config: Config, logger: Logger)
   app.post(
     "/chain/revoke",
     h(async (req, res) => {
-      const { credentialId } = RevokeRequestSchema.parse(req.body);
-      const result = await adapter.revoke(credentialId);
+      const { credentialId, institutionId } = RevokeRequestSchema.parse(req.body);
+      const result = await adapter.revoke(credentialId, institutionId);
       logger.info({ credentialId, txId: result.txId }, "credential revoked");
       res.status(200).json(result);
     }),

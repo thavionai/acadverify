@@ -28,6 +28,9 @@ class Settings(BaseSettings):
 
     # Issuer public key registered on-chain (64 hex chars). Issuance is
     # refused with a 503 until this is configured — see routers/issue.py.
+    # Retained only so an existing ISSUER_PK in .env does not fail validation.
+    # Nothing reads it: chain-service derives each institution's key from its
+    # identity, so the backend never handles issuer key material.
     issuer_pk: str = ""
 
     # --- verification URL construction ---

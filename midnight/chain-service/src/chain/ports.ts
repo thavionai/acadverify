@@ -16,7 +16,13 @@ export interface DisclosedClaim {
 
 export interface CredentialFields {
   studentId: string;
-  issuerPk: string;
+  /**
+   * Filled by the adapter from the key it signs with — never accepted over
+   * HTTP (see CredentialFieldsSchema). The circuit asserts
+   * fields.issuerPk == publicKey(localSecretKey()), so a caller-supplied value
+   * could only agree or lie.
+   */
+  issuerPk?: string;
   institutionId: string;
   degreeCode: number;
   graduationYear: number;
@@ -97,9 +103,20 @@ export interface HealthResult {
 export interface ChainAdapter {
   readonly mode: "mock" | "live";
   health(): Promise<HealthResult>;
-  authorizeIssuer(issuerPk: string): Promise<{ txId: string; blockHeight: number | null }>;
-  issue(credentialId: string, fields: CredentialFields): Promise<IssueResult>;
-  revoke(credentialId: string): Promise<RevokeResult>;
+  /**
+   * Authorise an institution to issue. Pass `institutionId` and the adapter
+   * derives that institution's key; pass `issuerPk` to authorise a key held
+   * elsewhere (the operator script).
+   */
+  authorizeIssuer(
+    identity: { institutionId?: string; issuerPk?: string },
+  ): Promise<{ txId: string; blockHeight: number | null; issuerPk: string }>;
+  issue(
+    credentialId: string,
+    institutionId: string,
+    fields: CredentialFields,
+  ): Promise<IssueResult>;
+  revoke(credentialId: string, institutionId: string): Promise<RevokeResult>;
   prove(credentialId: string, disclose: string[]): Promise<ProveResult>;
   state(credentialId: string): Promise<StateResult>;
   /** Demo-only: corrupt stored witness data so the forgery beat is a live click. */

@@ -32,12 +32,6 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
 )
 async def issue_credential(payload: IssueCredentialRequest) -> IssueCredentialResponse:
-    if not get_settings().issuer_pk:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Issuer signing key is not configured.",
-        )
-
     credential_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
     chain_result = await chain_service_client.issue_credential(
@@ -45,6 +39,14 @@ async def issue_credential(payload: IssueCredentialRequest) -> IssueCredentialRe
         university_id=payload.university_id,
         credential_type=payload.credential_type,
         witness=payload.witness.model_dump(),
+        # This is the admin/ops route, authenticated by API key rather than by
+        # a wallet, so there is no connected institution to attribute to. It
+        # issues under the university named in the request, which chain-service
+        # turns into that institution's own key.
+        #
+        # The old `settings.issuer_pk` guard here is gone: the backend no
+        # longer holds or forwards any issuer key. chain-service derives it.
+        issuer_identity=payload.university_id,
     )
 
     chain_status = chain_result.get("status", "pending")

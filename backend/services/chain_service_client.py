@@ -96,11 +96,30 @@ def _hex32(*parts: str) -> str:
     return hashlib.sha256(":".join(parts).encode()).hexdigest()
 
 
+async def authorize_issuer(issuer_identity: str) -> dict:
+    """
+    Register an institution as an authorised issuer ON-CHAIN.
+
+    Nothing used to call this. `authorizeIssuer` existed as a circuit and as an
+    HTTP route, and the only caller was a manual operator script — so
+    "Submit for Review" in the dashboard wrote a database row marked AUTHORIZED
+    while the chain knew nothing about the institution.
+
+    chain-service derives the institution's key from this identity, so the
+    backend never sees or handles a signing key.
+    """
+    result = await _request(
+        "POST", "/chain/authorize-issuer", json={"institutionId": issuer_identity}
+    )
+    return result
+
+
 async def issue_credential(
     credential_id: str,
     university_id: str,
     credential_type: str,
     witness: dict,
+    issuer_identity: str,
 ) -> dict:
     # /chain/issue takes 32-byte hex identifiers and small integers only —
     # see midnight/chain-service/src/http/schemas.ts (the frozen contract).
@@ -110,9 +129,16 @@ async def issue_credential(
     gpa = witness.get("gpa")
     payload = {
         "credentialId": credential_id,
+        # WHO IS SIGNING. chain-service derives this institution's own key from
+        # it. Previously every credential carried one global ISSUER_PK, so the
+        # ledger recorded a single issuer no matter which university was logged
+        # in — the contract is multi-tenant, the deployment was not.
+        #
+        # Distinct from fields.institutionId below, which is a digest of the
+        # awarding institution's NAME and is a disclosed field, not a signer.
+        "institutionId": issuer_identity,
         "fields": {
             "studentId": _hex32("student", str(witness.get("student_id", ""))),
-            "issuerPk": settings.issuer_pk,
             "institutionId": _hex32("institution", university_id),
             # Stable numeric code for the degree program (uint32 range).
             "degreeCode": int.from_bytes(
@@ -128,10 +154,18 @@ async def issue_credential(
     return {"status": "issued", "chain_proof_ref": result.get("txId"), "chain": result}
 
 
-async def revoke_credential(credential_id: str, reason: str | None = None) -> dict:
+async def revoke_credential(
+    credential_id: str,
+    issuer_identity: str,
+    reason: str | None = None,
+) -> dict:
     # `reason` is kept for the backend's own audit trail; the chain contract
     # (RevokeRequestSchema) has no field for it and would strip it anyway.
-    payload = {"credentialId": credential_id}
+    #
+    # revokeCredential asserts the caller's key matches the one that issued
+    # this credential, so passing the caller's identity is what lets that
+    # assert do its job — a university cannot revoke another's credentials.
+    payload = {"credentialId": credential_id, "institutionId": issuer_identity}
     result = await _request("POST", "/chain/revoke", json=payload)
     return {"revoked_at": result.get("revokedAt"), "chain": result}
 

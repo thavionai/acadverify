@@ -37,7 +37,26 @@ describe("GET /chain/openapi.json", () => {
     expect(issue.properties).toHaveProperty("credentialId");
     expect(issue.properties).toHaveProperty("fields");
     // Field-level constraints carried through from the zod schema.
-    expect(issue.properties.fields.properties).toHaveProperty("issuerPk");
+    expect(issue.properties.fields.properties).toHaveProperty("institutionId");
+  });
+
+  it("does not let a caller name the issuer of a credential", () => {
+    const issue = doc.paths["/chain/issue"].post.requestBody.content["application/json"].schema;
+
+    // The signing identity is a top-level property; the KEY is not accepted at
+    // all. The circuit asserts fields.issuerPk == publicKey(localSecretKey()),
+    // so anything a caller supplied could only agree or lie — and the backend
+    // used to send one global ISSUER_PK for every university, which is how
+    // every credential on the ledger ended up sharing a single issuer.
+    expect(issue.properties).toHaveProperty("institutionId");
+    expect(issue.properties.fields.properties).not.toHaveProperty("issuerPk");
+  });
+
+  it("requires the caller's identity to revoke", () => {
+    const revoke = doc.paths["/chain/revoke"].post.requestBody.content["application/json"].schema;
+    // revokeCredential binds revocation to the credential's ACTUAL issuer, so
+    // the caller has to say who it is for that assert to mean anything.
+    expect(revoke.properties).toHaveProperty("institutionId");
   });
 
   it("states the error semantics that must not be misread", () => {
