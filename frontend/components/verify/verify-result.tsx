@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { buildIndexerQuery, verifyCredential } from "@/lib/api";
-import { formatLabel } from "@/lib/format";
+import { formatDisclosedValue, formatLabel } from "@/lib/format";
 import type { VerifyApiResult, VerificationResult } from "@/lib/types";
 import { CopyButton } from "@/components/ui/copy-button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -255,7 +255,7 @@ function VerifiedContent({ result }: { result: VerificationResult }) {
                       {formatLabel(key)}
                     </dt>
                     <dd className="break-words text-base font-medium text-paper">
-                      {value}
+                      {formatDisclosedValue(key, value)}
                     </dd>
                   </div>
                 ))}
