@@ -15,8 +15,13 @@ export type ApiErrorCode =
   | "UNKNOWN_ERROR";
 
 export type DisclosedCredentialFields = {
-  institution: string;
-  degree: string;
+  // Nullable like the rest. These two are read from the off-chain index
+  // rather than the circuit, and used to stay populated on a failed proof —
+  // so a REVOKED credential showed "Institution / Degree" under *Disclosed
+  // Fields* while the proof had disclosed nothing. The API now clears them
+  // unless the proof succeeded.
+  institution: string | null;
+  degree: string | null;
   // Chain-disclosed fields are null whenever the proof did not succeed
   // (REVOKED or INVALID_PROOF disclose nothing at all). Anything null here is
   // listed in `withheld` instead — the two are mutually exclusive, so never

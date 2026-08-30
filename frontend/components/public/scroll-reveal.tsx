@@ -153,9 +153,9 @@ export function ScrollReveal() {
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold-500">
                 {frame.eyebrow}
               </p>
-              <h3 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-paper">
+              <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight text-paper">
                 {frame.title}
-              </h3>
+              </h2>
               <p className="mt-4 text-pretty text-lg leading-relaxed text-paper-dim">
                 {frame.body}
               </p>
@@ -252,9 +252,9 @@ export function ScrollReveal() {
                     >
                       {frame.eyebrow}
                     </p>
-                    <h3 className="mt-3 text-balance text-3xl font-semibold leading-tight tracking-tight text-paper sm:text-5xl">
+                    <h2 className="mt-3 text-balance text-3xl font-semibold leading-tight tracking-tight text-paper sm:text-5xl">
                       {frame.title}
-                    </h3>
+                    </h2>
                     <p className="mt-4 max-w-xl text-pretty text-base leading-relaxed text-paper-dim sm:text-lg">
                       {frame.body}
                     </p>

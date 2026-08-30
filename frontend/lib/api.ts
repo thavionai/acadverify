@@ -260,6 +260,15 @@ async function request<T>(
 }
 
 function getApiError(payload: unknown, status: number): ApiErrorPayload["error"] {
+  // Only a response carrying our own error envelope may be treated as a
+  // statement ABOUT THE CREDENTIAL. Anything else — a proxy 404, an HTML
+  // error page, a gateway timeout — is a statement about our infrastructure,
+  // and mapping it by status code alone inverts the two.
+  //
+  // This is not hypothetical: with the API unreachable, the Next dev server
+  // answered /api/v1/verify/... with its own 404, codeFromStatus turned that
+  // into NOT_FOUND, and the verification page told the visitor "No credential
+  // was found for this public ID" about a credential that exists.
   if (
     payload &&
     typeof payload === "object" &&
@@ -281,11 +290,11 @@ function getApiError(payload: unknown, status: number): ApiErrorPayload["error"]
     };
   }
 
-  const code = codeFromStatus(status);
-
+  // No envelope: this did not come from our API, so it cannot be a verdict.
+  // Report it as the service problem it is, whatever the status code says.
   return {
-    code,
-    message: USER_FACING_FALLBACKS[code],
+    code: "UNKNOWN_ERROR",
+    message: USER_FACING_FALLBACKS.UNKNOWN_ERROR,
   };
 }
 

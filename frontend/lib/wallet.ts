@@ -137,5 +137,58 @@ export function useMidnightWallet() {
     return () => window.clearTimeout(timer);
   }, [state.status]);
 
+  // Restore an already-authorised wallet on mount.
+  //
+  // The connection lived in React state alone, so any full page load — a
+  // refresh, a pasted /dashboard/registry link, a bookmark — dropped it and
+  // re-gated the page behind "Connect your issuer wallet", even though the
+  // extension was still authorised for this origin. A registrar who refreshed
+  // mid-task was silently signed out.
+  //
+  // isEnabled() is the connector's own answer to "have I already been granted
+  // access here?", and it does not prompt. It was already being called to
+  // choose between providers during an explicit connect; this just asks it one
+  // step earlier. Extensions inject asynchronously, so this retries briefly
+  // rather than giving up on the first miss.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    async function restore() {
+      if (cancelled || connectingRef.current) return;
+
+      for (const { provider } of discoverWalletProviders()) {
+        try {
+          if (!(await provider.isEnabled?.())) continue;
+          const api = await provider.enable();
+          const walletState = await api.state();
+          if (cancelled || !walletState?.address) continue;
+
+          setState({
+            status: "connected",
+            connection: {
+              address: walletState.address,
+              walletName: provider.name || "Midnight wallet",
+            },
+          });
+          return;
+        } catch {
+          // A wallet that refuses to restore is not an error worth showing:
+          // the user can still connect explicitly.
+        }
+      }
+
+      if (++attempts < 6 && !cancelled) window.setTimeout(restore, 300);
+    }
+
+    restore();
+    return () => {
+      cancelled = true;
+    };
+    // Mount only — an explicit disconnect must not immediately re-connect.
+  }, []);
+
   return { state, connect, disconnect };
 }

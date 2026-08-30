@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { saveInstitutionProfile } from "@/lib/api";
 import { useWalletContext } from "@/lib/wallet-context";
@@ -218,10 +218,17 @@ function TextField({
   value: string;
   onChange: (value: string) => void;
 }) {
+  // Same defect as the setup wizard's field: an unassociated label leaves the
+  // input with no accessible name.
+  const id = useId();
+
   return (
     <div>
-      <label className="text-sm font-medium text-paper">{label}</label>
+      <label htmlFor={id} className="text-sm font-medium text-paper">
+        {label}
+      </label>
       <input
+        id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useId, useState } from "react";
 import Link from "next/link";
 import { saveInstitutionProfile } from "@/lib/api";
 import { useWalletContext } from "@/lib/wallet-context";
@@ -254,10 +254,18 @@ function TextField({
   placeholder?: string;
   type?: string;
 }) {
+  // The label carried no htmlFor, the input no id, and the input was not
+  // nested inside the label — so this was decorative text, not a label.
+  // Clicking it did nothing and a screen reader announced an unnamed field.
+  const id = useId();
+
   return (
     <div>
-      <label className="text-sm font-medium text-paper">{label}</label>
+      <label htmlFor={id} className="text-sm font-medium text-paper">
+        {label}
+      </label>
       <input
+        id={id}
         type={type}
         required
         value={value}
