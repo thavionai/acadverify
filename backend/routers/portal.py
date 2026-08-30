@@ -139,7 +139,17 @@ async def verify_credential_public(credential_id: str, request: Request, disclos
         "disclosed": disclosed,
         "proof": {
             "verified": proof.get("verified", chain_status == "VALID"),
-            "issuerAuthorized": chain_status != "INVALID_PROOF",
+            # Unknown, not False, on a failed proof.
+            #
+            # proveCredential asserts four things — the credential exists, the
+            # commitment matches, it is not revoked, and the issuer is
+            # authorised — and a failed proof does not say WHICH assert
+            # tripped. Deriving this from the status therefore printed "Issuer
+            # Authorized: No" for a credential whose data had simply been
+            # tampered with, which reads as "this university is not recognised
+            # by the platform": a specific and damaging accusation the system
+            # has no evidence for. Only a successful proof establishes it.
+            "issuerAuthorized": True if chain_status == "VALID" else None,
             "revoked": chain_status == "REVOKED",
             "networkId": evidence.get("networkId", ""),
             "contractAddress": evidence.get("contractAddress", ""),

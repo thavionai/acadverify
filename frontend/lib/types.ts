@@ -34,7 +34,8 @@ export type DisclosedCredentialFields = {
 
 export type ProofDetails = {
   verified: boolean;
-  issuerAuthorized: boolean;
+  // null on a failed proof: the circuit does not report which assert failed.
+  issuerAuthorized: boolean | null;
   revoked: boolean;
   networkId: string;
   contractAddress: string;

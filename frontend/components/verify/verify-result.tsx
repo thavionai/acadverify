@@ -335,9 +335,19 @@ function ProofPanel({ result }: { result: VerificationResult }) {
         />
         <ProofDatum label="Transaction ID" value={result.proof.txId} />
         <ProofDatum label="Proved At" value={result.proof.provedAt} />
+        {/* Three states, not two. A failed proof does not reveal which of the
+            circuit's asserts tripped, so "No" would be an accusation we cannot
+            support — see the note in portal.py. */}
         <ProofDatum
           label="Issuer Authorized"
-          value={result.proof.issuerAuthorized ? "Yes" : "No"}
+          value={
+            result.proof.issuerAuthorized === null ||
+            result.proof.issuerAuthorized === undefined
+              ? "Not established by this proof"
+              : result.proof.issuerAuthorized
+                ? "Yes"
+                : "No"
+          }
         />
         <ProofDatum
           label="Revoked"
