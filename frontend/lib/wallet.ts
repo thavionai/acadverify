@@ -4,21 +4,41 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { WalletConnection } from "@/lib/types";
 
 /**
- * Minimal surface of `@midnight-ntwrk/dapp-connector-api` this app relies on.
- * Kept local (instead of importing the package) so the dashboard degrades
- * gracefully to "wallet unavailable" in environments where the package
- * isn't installed yet, per the stretch-goal status of wallet integration.
+ * Midnight DApp connector, as the Lace extension actually implements it
+ * (apiVersion 4.0.1, verified against a live wallet).
+ *
+ * This file previously described a different API entirely — `window.midnight.mnLace`
+ * with `isEnabled()` and `enable()` returning `{ state(): {address} }`. None of
+ * those exist. Connecting a real wallet failed with "provider.enable is not a
+ * function", and the bug survived because the only thing ever tested against
+ * was a stub built from these same wrong assumptions.
+ *
+ * What the extension really exposes:
+ *
+ *   window.midnight[<uuid>]              // the key is a random UUID, not a name
+ *     .name / .rdns / .icon / .apiVersion
+ *     .connect(networkId) -> api         // NOT enable(); the network is required
+ *
+ *   api.getShieldedAddresses()   -> { shieldedAddress: "mn_shield-addr1..." }
+ *   api.getUnshieldedAddress()   -> { unshieldedAddress: "mn_addr1..." }
+ *   api.getConfiguration()       -> { networkId, indexerUri, proverServerUri, ... }
+ *   api.getConnectionStatus()    -> current authorisation state
+ *
+ * Because the key is a UUID, discovery can only match on `name`/`rdns`.
  */
 type MidnightConnectorApi = {
   name?: string;
   rdns?: string;
+  icon?: string;
   apiVersion?: string;
-  isEnabled?: () => Promise<boolean>;
-  enable: () => Promise<MidnightEnabledApi>;
+  connect: (networkId: string) => Promise<MidnightWalletApi>;
 };
 
-type MidnightEnabledApi = {
-  state: () => Promise<{ address: string }>;
+type MidnightWalletApi = {
+  getShieldedAddresses?: () => Promise<{ shieldedAddress?: string } | string[]>;
+  getUnshieldedAddress?: () => Promise<{ unshieldedAddress?: string } | string>;
+  getConfiguration?: () => Promise<{ networkId?: string }>;
+  getConnectionStatus?: () => Promise<unknown>;
 };
 
 declare global {
@@ -27,11 +47,28 @@ declare global {
   }
 }
 
-// Matched against both the object key on `window.midnight` and each
-// provider's declared `name`/`rdns`, per the requirement to not rely on
-// `window.midnight.mnLace` alone — other Midnight wallets announce
-// themselves under different keys.
 const WALLET_NAME_HINTS = ["lace", "midnight"];
+
+/**
+ * Networks to offer the wallet, best guess first.
+ *
+ * `connect()` rejects with "Network ID mismatch" unless the id matches the
+ * network the wallet is actually on, and the wallet gives no way to ask
+ * before connecting — so this tries the network this build targets, then the
+ * rest of the valid set. Order matters only for how many rejections we walk
+ * through before succeeding.
+ */
+const APP_NETWORK = process.env.NEXT_PUBLIC_MIDNIGHT_NETWORK_ID || "undeployed";
+const CANDIDATE_NETWORKS = [
+  APP_NETWORK,
+  "undeployed",
+  "devnet",
+  "preview",
+  "preprod",
+  "testnet",
+  "qanet",
+  "mainnet",
+].filter((n, i, all) => all.indexOf(n) === i);
 
 function discoverWalletProviders(): Array<{
   key: string;
@@ -39,12 +76,60 @@ function discoverWalletProviders(): Array<{
 }> {
   if (typeof window === "undefined" || !window.midnight) return [];
 
-  return Object.entries(window.midnight).filter(([key, provider]) => {
-    const haystack = `${key} ${provider?.name ?? ""} ${
-      provider?.rdns ?? ""
-    }`.toLowerCase();
-    return WALLET_NAME_HINTS.some((hint) => haystack.includes(hint));
-  }).map(([key, provider]) => ({ key, provider }));
+  return Object.entries(window.midnight)
+    .filter(([key, provider]) => {
+      // The key is a UUID in current Lace, so `name`/`rdns` do the real work
+      // here; `key` is kept in the haystack for wallets that still use a name.
+      const haystack = `${key} ${provider?.name ?? ""} ${
+        provider?.rdns ?? ""
+      }`.toLowerCase();
+      return (
+        typeof provider?.connect === "function" &&
+        WALLET_NAME_HINTS.some((hint) => haystack.includes(hint))
+      );
+    })
+    .map(([key, provider]) => ({ key, provider }));
+}
+
+/** Both address getters return a wrapper object; tolerate a bare string too. */
+async function readAddress(api: MidnightWalletApi): Promise<string | null> {
+  try {
+    const shielded = await api.getShieldedAddresses?.();
+    if (typeof shielded === "string") return shielded;
+    if (Array.isArray(shielded)) return shielded[0] ?? null;
+    if (shielded?.shieldedAddress) return shielded.shieldedAddress;
+  } catch {
+    // fall through to the unshielded address
+  }
+
+  try {
+    const unshielded = await api.getUnshieldedAddress?.();
+    if (typeof unshielded === "string") return unshielded;
+    if (unshielded && typeof unshielded === "object" && unshielded.unshieldedAddress) {
+      return unshielded.unshieldedAddress;
+    }
+  } catch {
+    // no address available
+  }
+
+  return null;
+}
+
+/** Try each candidate network until the wallet accepts one. */
+async function connectOnAnyNetwork(provider: MidnightConnectorApi): Promise<{
+  api: MidnightWalletApi;
+  networkId: string;
+} | null> {
+  for (const networkId of CANDIDATE_NETWORKS) {
+    try {
+      const api = await provider.connect(networkId);
+      if (api) return { api, networkId };
+    } catch {
+      // "Network ID mismatch" simply means the wallet is on a different
+      // network; try the next one rather than surfacing it as a failure.
+    }
+  }
+  return null;
 }
 
 export type WalletState =
@@ -53,6 +138,8 @@ export type WalletState =
   | { status: "connecting" }
   | { status: "connected"; connection: WalletConnection }
   | { status: "error"; message: string };
+
+const LAST_NETWORK_KEY = "acadverify.wallet.networkId";
 
 const CONNECT_ERROR_FALLBACK =
   "The wallet extension did not respond. Approve the connection request in the extension, or try again.";
@@ -75,35 +162,37 @@ export function useMidnightWallet() {
     setState({ status: "connecting" });
 
     try {
-      // Prefer an already-authorized provider if more than one extension is
-      // installed, so re-opening the dashboard doesn't re-prompt.
-      let authorized: { key: string; provider: MidnightConnectorApi } | null =
-        null;
+      let connected: {
+        provider: MidnightConnectorApi;
+        api: MidnightWalletApi;
+        networkId: string;
+      } | null = null;
 
-      for (const candidate of providers) {
-        try {
-          if (await candidate.provider.isEnabled?.()) {
-            authorized = candidate;
-            break;
-          }
-        } catch {
-          // isEnabled is optional per the connector spec; ignore failures.
+      for (const { provider } of providers) {
+        const result = await connectOnAnyNetwork(provider);
+        if (result) {
+          connected = { provider, ...result };
+          break;
         }
       }
 
-      const { key, provider } = authorized ?? providers[0];
-      const api = await provider.enable();
-      const walletState = await api.state();
-
-      if (!walletState?.address) {
-        throw new Error("The wallet did not return an address.");
+      if (!connected) {
+        throw new Error(
+          "No wallet accepted a connection. Check that the wallet is unlocked.",
+        );
       }
+
+      const address = await readAddress(connected.api);
+      if (!address) throw new Error("The wallet did not return an address.");
+
+      window.localStorage.setItem(LAST_NETWORK_KEY, connected.networkId);
 
       setState({
         status: "connected",
         connection: {
-          address: walletState.address,
-          walletName: provider.name || key,
+          address,
+          walletName: connected.provider.name || "Midnight wallet",
+          networkId: connected.networkId,
         },
       });
     } catch (error) {
@@ -120,9 +209,62 @@ export function useMidnightWallet() {
     setState({ status: "idle" });
   }, []);
 
-  // Detect wallets that inject after initial page load (common with
-  // extensions) so the button doesn't wrongly report "unavailable" on a
-  // cold load.
+  // Restore an already-authorised wallet on mount.
+  //
+  // Without this the connection lives in React state alone, so any full page
+  // load — a refresh, a pasted /dashboard/registry link, a bookmark — drops it
+  // and re-gates the page behind "Connect your issuer wallet" even though the
+  // extension is still authorised for this origin.
+  //
+  // Only the network that worked last time is retried, read from
+  // localStorage. Walking all eight candidates on every mount would be slow
+  // and could prompt; reconnecting on the known-good one returns silently
+  // while the DApp authorisation still stands.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const remembered = window.localStorage.getItem(LAST_NETWORK_KEY);
+    if (!remembered) return;
+
+    let cancelled = false;
+    let attempts = 0;
+
+    async function restore() {
+      if (cancelled || connectingRef.current) return;
+
+      for (const { provider } of discoverWalletProviders()) {
+        try {
+          const api = await provider.connect(remembered as string);
+          const address = await readAddress(api);
+          if (cancelled || !address) continue;
+
+          setState({
+            status: "connected",
+            connection: {
+              address,
+              walletName: provider.name || "Midnight wallet",
+              networkId: remembered as string,
+            },
+          });
+          return;
+        } catch {
+          // Authorisation revoked, wallet locked, or the network changed. The
+          // user can still connect explicitly; not worth surfacing an error.
+        }
+      }
+
+      if (++attempts < 6 && !cancelled) window.setTimeout(restore, 300);
+    }
+
+    restore();
+    return () => {
+      cancelled = true;
+    };
+    // Mount only — an explicit disconnect must not immediately reconnect.
+  }, []);
+
+  // Extensions inject asynchronously, so a cold load can miss them. Re-check
+  // briefly rather than reporting "unavailable" too early.
   useEffect(() => {
     if (state.status !== "idle") return;
     if (typeof window === "undefined") return;
@@ -136,59 +278,6 @@ export function useMidnightWallet() {
 
     return () => window.clearTimeout(timer);
   }, [state.status]);
-
-  // Restore an already-authorised wallet on mount.
-  //
-  // The connection lived in React state alone, so any full page load — a
-  // refresh, a pasted /dashboard/registry link, a bookmark — dropped it and
-  // re-gated the page behind "Connect your issuer wallet", even though the
-  // extension was still authorised for this origin. A registrar who refreshed
-  // mid-task was silently signed out.
-  //
-  // isEnabled() is the connector's own answer to "have I already been granted
-  // access here?", and it does not prompt. It was already being called to
-  // choose between providers during an explicit connect; this just asks it one
-  // step earlier. Extensions inject asynchronously, so this retries briefly
-  // rather than giving up on the first miss.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    let cancelled = false;
-    let attempts = 0;
-
-    async function restore() {
-      if (cancelled || connectingRef.current) return;
-
-      for (const { provider } of discoverWalletProviders()) {
-        try {
-          if (!(await provider.isEnabled?.())) continue;
-          const api = await provider.enable();
-          const walletState = await api.state();
-          if (cancelled || !walletState?.address) continue;
-
-          setState({
-            status: "connected",
-            connection: {
-              address: walletState.address,
-              walletName: provider.name || "Midnight wallet",
-            },
-          });
-          return;
-        } catch {
-          // A wallet that refuses to restore is not an error worth showing:
-          // the user can still connect explicitly.
-        }
-      }
-
-      if (++attempts < 6 && !cancelled) window.setTimeout(restore, 300);
-    }
-
-    restore();
-    return () => {
-      cancelled = true;
-    };
-    // Mount only — an explicit disconnect must not immediately re-connect.
-  }, []);
 
   return { state, connect, disconnect };
 }

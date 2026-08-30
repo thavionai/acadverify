@@ -77,6 +77,10 @@ export type VerifyApiResult = ApiResult<VerificationResult>;
 export type WalletConnection = {
   address: string;
   walletName: string;
+  // The network the wallet is actually on. Worth carrying: the wallet may be
+  // on mainnet while this build's contract lives on a local devnet, and the UI
+  // should be able to say so rather than imply they are the same chain.
+  networkId?: string;
 };
 
 // ---------------------------------------------------------------------------

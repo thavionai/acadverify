@@ -59,16 +59,24 @@ test.describe("critical credential lifecycle", () => {
     // issuer without a real browser extension installed.
     await page.addInitScript(
       ({ address }) => {
-        // `window.midnight` is declared globally in lib/wallet.ts, so this
-        // shim type-checks without a suppression.
+        // Mirrors the real Lace connector (apiVersion 4.0.1): a UUID key, a
+        // connect(networkId) that rejects a mismatched network, and addresses
+        // read from getShieldedAddresses(). The previous stub used an
+        // isEnabled/enable/state shape that no wallet implements, so these
+        // tests passed while real wallet connect was broken.
         window.midnight = {
-          mnLace: {
-            name: "Lace",
+          "4ecdca0b-ffef-4d9e-87f8-f5c04e9cd72f": {
+            name: "lace",
             rdns: "io.lace",
-            isEnabled: async () => true,
-            enable: async () => ({
-              state: async () => ({ address }),
-            }),
+            apiVersion: "4.0.1",
+            connect: async (networkId: string) => {
+              if (networkId !== "undeployed") {
+                throw new Error("Network ID mismatch");
+              }
+              return {
+                getShieldedAddresses: async () => ({ shieldedAddress: address }),
+              };
+            },
           },
         };
       },
