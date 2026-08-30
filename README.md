@@ -14,6 +14,23 @@ Built for the **MLH Midnight Hackathon** (Aug 28–30, 2026) · Track:
 
 ---
 
+## Demo
+
+- 🎥 **Demo video (≤ 2 min):** _link coming — will be public_ <!-- TODO: paste YouTube/Loom URL before final submission (Sun 11:45 ET) -->
+- 📦 **Repo:** https://github.com/thavionai/acadverify (public)
+- 🧾 **Devpost:** _link coming_ <!-- TODO -->
+
+**In one sentence:** *For* an employer *who* must confirm a candidate's degree
+*without* receiving their student ID, grades, or the university's records, *we
+prove* the credential is genuine and unrevoked — *without revealing* anything
+the student did not consent to share.
+
+**The loop the demo shows (twice):** university issues → student's QR →
+employer scans `/verify/<credentialId>` → **VALID / REVOKED / INVALID_PROOF**
+with the disclosed / withheld split.
+
+---
+
 ## What Midnight changes
 
 AcadVerify began as a conventional EVM credential-anchoring app. Moving it to
@@ -82,6 +99,26 @@ docker compose up -d
 cd midnight/chain-service && npm run compact
 # = compact compile +0.31.1 ../contracts/academic_credential.compact \
 #                          ./managed/academic_credential
+
+# 6. Deploy to the local devnet and run it live
+npm run deploy                    # writes midnight/deployments/undeployed.json
+CHAIN_MODE=live npm start
+```
+
+### Test it
+
+```bash
+# Chain-service unit tests (disclosure, error mapping, tx submission)
+cd midnight/chain-service && npm test               # 64 tests, 9 files
+
+# End-to-end against the live local devnet
+npm run smoke                                        # adapter-level, 11/11
+npm run smoke:http                                   # over HTTP, 13/13
+npm run check:salt-leak                              # salt never in a response/log, 6/6
+
+# Backend + frontend
+cd ../../backend && pytest                           # disclosure + error envelope
+cd ../frontend && npx playwright test                # critical flow + live product
 ```
 
 Full details, including troubleshooting: [docs/local-setup.md](docs/local-setup.md).
@@ -143,15 +180,38 @@ git push -u origin prajithravisankar-backend
 
 ---
 
-## Project Status
+## Project Status & evidence
 
-🚧 **Hackathon MVP — active development.**
+**Verified on the local devnet (2026-08-28 → 08-30):**
 
-Verified working: Compact toolchain, the contract (4 circuits, keys, TS API),
-and the full local devnet (node + indexer + proof server responding).
-Not yet done: deployment to `preview`, end-to-end proving through the
-chain-service. See [docs/midnight-integration.md](docs/midnight-integration.md) §5
-for the current verification status — and don't claim more than that list.
+| Claim | Evidence |
+|---|---|
+| Contract compiles | `npm run compact` → `Compiling 4 circuits`, prover + verifier keys, TS API emitted |
+| Selective disclosure is real | `proveCredential` returns exactly 4 fields; `studentId` is absent from the type itself |
+| End-to-end proving | `smoke` 11/11 + `smoke:http` 13/13 against node + indexer + proof server |
+| Unit tests | chain-service `vitest` **64/64** |
+| Salt never leaks | `check:salt-leak` 6/6 on a real issuance |
+| Measured proof latency | issuance ≈ 19 s (proof-bound); verification never touches the proof server |
+
+Full table with dates: [docs/midnight-integration.md §5](docs/midnight-integration.md).
+
+**Limitations (known, disclosed):**
+
+- `credentialId` is revealed per verification, so a verifier can build an access
+  log for one credential. We do **not** claim unlinkability. Remedy sketched in
+  [docs/smart-contract.md](docs/smart-contract.md).
+- Runs on the **local devnet** (`undeployed`). Not yet deployed to `preview`
+  (needs faucet tDUST) — `midnight/deployments/preview.json` does not exist.
+- The detachable ZK proof bundle (`proof.level: "zk-verified"`) was attempted
+  and cut for time; see `midnight/chain-service/README.md`.
+
+**Next step:** deploy to `preview` and publish the contract address.
+
+**Prior work disclosure (Integrate Midnight track):** the *concept* and an
+EVM-based design (SHA256 anchoring on Polygon) predate the event; **all code in
+this repository was written during the hackathon** (first commit
+2026-08-28 11:00 PT). Nothing from the EVM prototype is reused — Midnight is
+not EVM-compatible.
 
 ---
 
