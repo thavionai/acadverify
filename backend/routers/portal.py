@@ -497,7 +497,13 @@ async def issue_credential_portal(
     # and the UI tells the university to pass it on by hand.
     email_sent = (
         await mailer.send_holder_link(
-            payload.studentEmail.strip(), hold_url, payload.institution, payload.degree
+            payload.studentEmail.strip(),
+            hold_url,
+            payload.institution,
+            payload.degree,
+            # Only the ones that actually made it on-chain: listing a failed
+            # attestation would tell the graduate they hold something they do not.
+            [a["title"] for a in attestation_results if a["ok"]],
         )
         if payload.studentEmail.strip()
         else None
