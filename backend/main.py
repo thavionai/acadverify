@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from core.blocklist import register_blocklist_middleware
 from core.config import get_settings
 from core.error_handlers import register_error_handlers
-from routers import issue, portal, revoke, verify
+from routers import holder, issue, portal, revoke, verify
 from services import chain_service_client
 
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +47,8 @@ app.include_router(issue.router)
 app.include_router(revoke.router)
 app.include_router(verify.router)
 app.include_router(portal.router)
+# The graduate's own surface: access by possession of a secret link, no account.
+app.include_router(holder.router)
 
 
 @app.get("/healthz", tags=["ops"])

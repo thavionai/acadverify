@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     issuer_pk: str = ""
 
     # --- verification URL construction ---
+    # --- AI resume checker -------------------------------------------------
+    # Optional. With no key the resume endpoint returns an honest 503 rather
+    # than degrading to guesswork, so the feature is safe to leave unconfigured.
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_timeout_seconds: float = 30.0
+
     verify_base_url: str = "https://verify.example.com"
 
     # Comma-separated browser origins allowed to call the API (the Next.js

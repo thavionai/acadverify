@@ -11,6 +11,7 @@ Error responses here use the spec's envelope — {"error": {"code", "message"}}
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -23,6 +24,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from core import share_grants
 from core.client_ip import get_client_ip
 from core.config import get_settings
 from core.security import require_issuer_address
@@ -45,16 +47,45 @@ def _not_found(credential_id: str) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# Public verification — GET /verify/{credentialId}?disclose=gpa
+# Public verification — GET /verify/{credentialId}?grant={grantId}
 # ---------------------------------------------------------------------------
 
 @router.get("/verify/{credential_id}")
-async def verify_credential_public(credential_id: str, request: Request, disclose: str = ""):
+async def verify_credential_public(
+    credential_id: str,
+    request: Request,
+    disclose: str = "",
+    grant: str = "",
+):
     index_entry = await dynamo_client.get_credential_index(credential_id)
     if index_entry is None:
         return _not_found(credential_id)
 
-    disclose_fields = ["gpa"] if "gpa" in {p.strip() for p in disclose.split(",")} else []
+    # Disclosure is decided by the HOLDER, not by whoever opens the link.
+    #
+    # `disclose=gpa` used to be enough: a public query parameter, driven by a
+    # toggle on the verification page, so any verifier could reveal the GPA of
+    # any credential whose link they held. The product's central claim — that
+    # the graduate chooses what a verifier sees — was not true of the software.
+    #
+    # The parameter is still accepted so certificates and QR codes printed
+    # before this change keep resolving, but it no longer discloses anything.
+    _ = disclose
+
+    disclose_fields: list[str] = []
+    if grant:
+        active = share_grants.get_active_grant(grant)
+        # Unknown, revoked, and belongs-to-another-credential are reported
+        # identically on purpose: a verifier must not be able to probe whether
+        # a given grant ever existed, or which part of the check failed.
+        if active is None or active.get("credentialId") != credential_id:
+            return _api_error(
+                404,
+                "GRANT_NOT_FOUND",
+                "This share link is invalid or was revoked by the credential holder.",
+            )
+        if active.get("revealGpa"):
+            disclose_fields = ["gpa"]
     chain_result = await chain_service_client.verify_proof(
         credential_id=credential_id,
         proof_payload="",
@@ -252,9 +283,15 @@ async def issue_credential_portal(
         return _api_error(500, "UNKNOWN_ERROR", "Credential was issued on-chain but QR generation failed. Reference: " + credential_id)
 
     year_prefix = payload.graduationDate[:4]
+    # The graduate's own access link. Minted once, here, and never
+    # reconstructable afterwards: only its digest is stored, so a leaked index
+    # cannot be turned back into working access links.
+    holder_token = secrets.token_urlsafe(32)
+
     index_item = CredentialIndexItem(
         credential_id=credential_id,
         issuer_address=issuer,
+        holder_token_hash=hashlib.sha256(holder_token.encode()).hexdigest(),
         university_id=payload.institution,
         status=CredentialStatus.ISSUED,
         created_at=now,
@@ -278,6 +315,9 @@ async def issue_credential_portal(
         "txId": chain_result.get("chain_proof_ref") or "",
         "verifyUrl": verify_url,
         "qrCodeUrl": qr_public_url,
+        # Returned exactly once. The university hands this to the graduate;
+        # nothing on the server can produce it again.
+        "holdUrl": f"{get_settings().verify_base_url.rstrip('/')}/hold/{holder_token}",
     }
 
 
