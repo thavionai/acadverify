@@ -1,13 +1,81 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Palette
+   ---------------------------------------------------------------------------
+   Black + gold + paper-white, drawn from the hero artwork. The register is
+   deliberately academic (diplomas, wax seals, institutional gravitas) rather
+   than the blue/purple gradient most blockchain products reach for.
+
+   The whole application is dark, not just the landing page. A verifier who
+   follows a QR code from a certificate lands on /verify, and a registrar who
+   signs in lands on /dashboard; both should look like the same product as the
+   page that sold it to them.
+
+   RED IS RESERVED. In this product red means REVOKED, INVALID PROOF, or a
+   destructive action. The verification page shows four mutually exclusive
+   outcomes, and if red also appeared as decorative chrome a verifier could not
+   tell "brand accent" from "this credential is revoked". Red therefore appears
+   only inside photography (the wax seals in the artwork) and inside the danger
+   tokens below — never in buttons, links, borders, or headings that do not
+   destroy something.
+
+   Gold carries the opposite meaning: authentic, sealed, verified. It is the
+   primary action colour and the VALID state.
+--------------------------------------------------------------------------- */
+
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
+  /* Ink — near-black, very slightly warm so gold does not read as green on it */
+  --ink-950: #08080a; /* page ground */
+  --ink-900: #0f0f12; /* raised surface: cards, panels, header bars */
+  --ink-850: #131318; /* hover on a raised surface */
+  --ink-800: #17171c; /* form fields, inset wells */
+  --ink-700: #24242b; /* strong divider on a raised surface */
+
+  --background: var(--ink-950);
+  --foreground: #faf8f3;
+
+  /* Gold. Contrast on --ink-950: ~7.8:1, so it clears AA for body text and AAA
+     for large text. On white it is roughly 2.3:1 and fails everything — gold is
+     for dark grounds only, which is now the only kind of ground we have. */
+  --gold-500: #c9a227;
+  --gold-400: #dbb94a;
+  --gold-300: #e8c766;
+  --gold-700: #8b6f1a;
+
+  /* Paper — warm white matching the scrolls in the artwork. ~19:1 on ink. */
+  --paper: #faf8f3;
+  --paper-dim: #d8d4c8; /* body copy */
+  --paper-muted: #a8a396; /* captions, secondary labels; ~7:1 on ink-950 */
+
+  /* Danger. ~5.2:1 on --ink-950. See the reservation note above: these are for
+     revoked/invalid credentials and destructive controls, nothing else. */
+  --danger-500: #e0524a;
+  --danger-400: #f0776e;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-ink-950: var(--ink-950);
+  --color-ink-900: var(--ink-900);
+  --color-ink-850: var(--ink-850);
+  --color-ink-800: var(--ink-800);
+  --color-ink-700: var(--ink-700);
+
+  --color-gold-300: var(--gold-300);
+  --color-gold-400: var(--gold-400);
+  --color-gold-500: var(--gold-500);
+  --color-gold-700: var(--gold-700);
+
+  --color-paper: var(--paper);
+  --color-paper-dim: var(--paper-dim);
+  --color-paper-muted: var(--paper-muted);
+
+  --color-danger-400: var(--danger-400);
+  --color-danger-500: var(--danger-500);
+
   --font-sans: "Inter", ui-sans-serif, system-ui, Arial, Helvetica, sans-serif;
   --font-mono: "IBM Plex Mono", "Courier New", Courier, monospace;
 }
@@ -20,11 +88,76 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
-/* Monochrome focus ring used everywhere instead of a brand color */
+/* Form controls render their own dark chrome (calendar pickers, spinners,
+   autofill) using the page's declared scheme. Without this, a date input on a
+   dark card still paints a white popup and white autofill. */
+:root {
+  color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------------------
+   Focus
+
+   This previously read `:focus-visible { outline: none }` with no replacement,
+   which removed the keyboard focus indicator across the entire application —
+   a straight WCAG 2.4.7 failure that made the app unusable without a mouse.
+
+   The old rule needed a light-surface override, because gold on white is about
+   2.3:1. Every surface is dark now, so one gold ring is correct everywhere and
+   that override has been removed rather than left to rot.
+--------------------------------------------------------------------------- */
 :focus-visible {
-  outline: none;
+  outline: 2px solid var(--gold-500);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Gold on gold would vanish. Anything sitting on a gold fill gets an ink ring. */
+.bg-gold-500 :focus-visible,
+.bg-gold-400 :focus-visible,
+.bg-gold-500:focus-visible,
+.bg-gold-400:focus-visible {
+  outline-color: var(--ink-950);
+}
+
+::selection {
+  background: var(--gold-500);
+  color: var(--ink-950);
+}
+
+/* Scrollbars on the dark ground. Firefox honours the two properties; Chromium
+   and Safari need the ::-webkit- pseudo-elements. */
+* {
+  scrollbar-color: var(--ink-700) transparent;
+  scrollbar-width: thin;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ink-700);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

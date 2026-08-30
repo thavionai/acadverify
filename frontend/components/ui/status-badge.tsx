@@ -1,10 +1,29 @@
 import type { ReactNode } from "react";
 
+/**
+ * Verification outcome badge.
+ *
+ * Shape carries the meaning on its own — solid / outline / dashed / dotted —
+ * so the four states stay distinguishable to a colourblind reader and in a
+ * greyscale printout of a certificate. Colour is added on top as reinforcement,
+ * never as the only signal.
+ *
+ * The colour assignment is not decorative:
+ *
+ *   solid   gold    VALID — authentic, sealed. Gold is the brand's mark of
+ *                   authenticity, and a filled badge is the heaviest thing on
+ *                   the page, which is right for the answer people came for.
+ *   outline red     REVOKED — real, but withdrawn by its issuer.
+ *   dashed  red     INVALID_PROOF — no proof could be produced for this.
+ *   dotted  neutral OUR failure, not the credential's. Deliberately not red:
+ *                   a wiped vault or an unreachable node must never look like
+ *                   a forged degree.
+ */
 const TONE_CLASSES = {
-  solid: "border-slate-950 bg-slate-950 text-white",
-  outline: "border-slate-950 bg-white text-slate-950",
-  dashed: "border-dashed border-slate-950 bg-white text-slate-950",
-  dotted: "border-dotted border-slate-400 bg-white text-slate-500",
+  solid: "border-gold-500 bg-gold-500 text-ink-950",
+  outline: "border-danger-500 bg-danger-500/10 text-danger-400",
+  dashed: "border-dashed border-danger-500 bg-danger-500/5 text-danger-400",
+  dotted: "border-dotted border-paper/30 bg-ink-800 text-paper-muted",
 } as const;
 
 export function StatusBadge({

@@ -58,19 +58,19 @@ export function SetupWizard() {
   }
 
   return (
-    <div id="setup" className="mx-auto max-w-xl scroll-mt-24 rounded-lg border border-slate-200 bg-white p-6 sm:p-8">
-      <ol className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">
+    <div id="setup" className="mx-auto max-w-xl scroll-mt-24 rounded-lg border border-paper/10 bg-ink-900 p-6 sm:p-8">
+      <ol className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-paper-muted">
         {STEPS.map((label, index) => (
           <li key={label} className="flex items-center gap-2">
             <span
               className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                index <= stepIndex ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-400"
+                index <= stepIndex ? "bg-gold-500 text-ink-950" : "bg-ink-800 text-paper-muted"
               }`}
             >
               {index + 1}
             </span>
-            <span className={index <= stepIndex ? "text-slate-950" : ""}>{label}</span>
-            {index < STEPS.length - 1 ? <span className="mx-1 h-px w-6 bg-slate-200" /> : null}
+            <span className={index <= stepIndex ? "text-paper" : ""}>{label}</span>
+            {index < STEPS.length - 1 ? <span className="mx-1 h-px w-6 bg-paper/15" /> : null}
           </li>
         ))}
       </ol>
@@ -78,8 +78,8 @@ export function SetupWizard() {
       <div className="mt-8">
         {!wallet ? (
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">Connect your institution wallet</h2>
-            <p className="mt-2 text-sm text-slate-600">
+            <h2 className="text-lg font-semibold text-paper">Connect your institution wallet</h2>
+            <p className="mt-2 text-sm text-paper-dim">
               We use your Midnight wallet address to identify your
               institution as an issuer. No witness data or private keys ever
               leave your browser.
@@ -96,16 +96,16 @@ export function SetupWizard() {
         ) : null}
 
         {wallet && (institution.status === "idle" || institution.status === "loading") ? (
-          <div className="h-40 animate-pulse rounded-md bg-slate-50" />
+          <div className="h-40 animate-pulse rounded-md bg-ink-800" />
         ) : null}
 
         {wallet && institution.status === "error" ? (
           <div>
-            <p className="text-sm text-slate-700">{institution.message}</p>
+            <p className="text-sm text-paper-dim">{institution.message}</p>
             <button
               type="button"
               onClick={refreshInstitution}
-              className="mt-3 text-sm font-semibold text-slate-950 underline-offset-4 hover:underline"
+              className="mt-3 text-sm font-semibold text-paper underline-offset-4 hover:underline"
             >
               Retry
             </button>
@@ -120,7 +120,7 @@ export function SetupWizard() {
         institution.status === "loaded" &&
         (editing || institution.profile.status === "NOT_REGISTERED") ? (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <h2 className="text-lg font-semibold text-slate-950">Institution details</h2>
+            <h2 className="text-lg font-semibold text-paper">Institution details</h2>
             <TextField
               label="Institution Name"
               value={input.name}
@@ -148,7 +148,7 @@ export function SetupWizard() {
             />
 
             {submitError ? (
-              <p role="alert" className="text-sm text-slate-700">
+              <p role="alert" className="text-sm text-danger-400">
                 {submitError}
               </p>
             ) : null}
@@ -157,7 +157,7 @@ export function SetupWizard() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex min-h-11 items-center justify-center rounded-md bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="inline-flex min-h-11 items-center justify-center rounded-md bg-gold-500 px-5 text-sm font-semibold text-ink-950 transition hover:bg-gold-400 disabled:cursor-not-allowed disabled:bg-ink-700 disabled:text-paper-muted"
               >
                 {submitting ? "Submitting\u2026" : "Submit for Review"}
               </button>
@@ -165,7 +165,7 @@ export function SetupWizard() {
                 <button
                   type="button"
                   onClick={() => setEditing(false)}
-                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 px-5 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+                  className="inline-flex min-h-11 items-center justify-center rounded-md border border-paper/20 px-5 text-sm font-semibold text-paper hover:bg-ink-850"
                 >
                   Cancel
                 </button>
@@ -189,15 +189,15 @@ function ProfileStatus({
     return (
       <div className="text-center">
         <StatusBadge label="Authorized" tone="solid" icon={<IconCheck className="h-full w-full" />} />
-        <h2 className="mt-3 text-lg font-semibold text-slate-950">
+        <h2 className="mt-3 text-lg font-semibold text-paper">
           {profile.name} is authorized
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-paper-dim">
           Your institution can issue credentials.
         </p>
         <Link
           href="/dashboard/issue"
-          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md bg-slate-950 px-5 text-sm font-semibold text-white hover:bg-slate-800"
+          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md bg-gold-500 px-5 text-sm font-semibold text-ink-950 hover:bg-gold-400"
         >
           Go to Dashboard
         </Link>
@@ -209,10 +209,10 @@ function ProfileStatus({
     return (
       <div className="text-center">
         <StatusBadge label="Pending Review" tone="dashed" icon={<IconClock className="h-full w-full" />} />
-        <h2 className="mt-3 text-lg font-semibold text-slate-950">
+        <h2 className="mt-3 text-lg font-semibold text-paper">
           Application submitted
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-paper-dim">
           {profile.name} is under review. This usually takes 1–2 business
           days — you'll be able to issue credentials as soon as it's
           approved.
@@ -224,16 +224,16 @@ function ProfileStatus({
   return (
     <div className="text-center">
       <StatusBadge label="Rejected" tone="outline" icon={<IconX className="h-full w-full" />} />
-      <h2 className="mt-3 text-lg font-semibold text-slate-950">
+      <h2 className="mt-3 text-lg font-semibold text-paper">
         Application not approved
       </h2>
-      <p className="mt-2 text-sm text-slate-600">
+      <p className="mt-2 text-sm text-paper-dim">
         {profile.rejectionReason || "Update your details and resubmit."}
       </p>
       <button
         type="button"
         onClick={onEdit}
-        className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md bg-slate-950 px-5 text-sm font-semibold text-white hover:bg-slate-800"
+        className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md bg-gold-500 px-5 text-sm font-semibold text-ink-950 hover:bg-gold-400"
       >
         Update & Resubmit
       </button>
@@ -256,14 +256,14 @@ function TextField({
 }) {
   return (
     <div>
-      <label className="text-sm font-medium text-slate-800">{label}</label>
+      <label className="text-sm font-medium text-paper">{label}</label>
       <input
         type={type}
         required
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-2 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
+        className="mt-2 min-h-11 w-full rounded-md border border-paper/20 bg-ink-800 px-3 text-sm text-paper outline-none transition placeholder:text-paper-muted focus:border-gold-500 focus:ring-2 focus:ring-gold-500/10"
       />
     </div>
   );

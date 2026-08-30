@@ -31,7 +31,7 @@ export function CopyButton({
     <button
       type="button"
       onClick={copy}
-      className={`inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 ${className}`}
+      className={`inline-flex min-h-9 items-center justify-center rounded-md border border-paper/20 bg-ink-900 px-3 py-1.5 text-sm font-semibold text-paper transition hover:bg-ink-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 ${className}`}
       aria-live="polite"
     >
       {copied ? copiedLabel : label}

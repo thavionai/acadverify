@@ -79,7 +79,7 @@ export function RevokeConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/80 px-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) close();
       }}
@@ -90,16 +90,16 @@ export function RevokeConfirmModal({
         aria-modal="true"
         aria-labelledby="revoke-modal-title"
         aria-describedby="revoke-modal-description"
-        className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-lg"
+        className="w-full max-w-md rounded-lg border border-paper/10 bg-ink-900 p-6 shadow-lg"
       >
-        <h2 id="revoke-modal-title" className="text-lg font-semibold text-slate-950">
+        <h2 id="revoke-modal-title" className="text-lg font-semibold text-paper">
           Revoke this certificate?
         </h2>
         {/* studentName is always empty here — the registry index deliberately
             never stores student identity (docs/data-model.md) — so this
             rendered as a bare "mark 's Master of ... credential". Name the
             credential itself rather than an absent person. */}
-        <p id="revoke-modal-description" className="mt-2 text-sm text-slate-700">
+        <p id="revoke-modal-description" className="mt-2 text-sm text-paper-dim">
           {credential.studentName ? (
             <>
               This will permanently mark{" "}
@@ -119,7 +119,7 @@ export function RevokeConfirmModal({
         {state === "error" ? (
           <p
             role="alert"
-            className="mt-3 rounded-md border border-slate-950 bg-white px-3 py-2 text-sm text-slate-900"
+            className="mt-3 rounded-md border border-danger-500/60 bg-danger-500/10 px-3 py-2 text-sm text-paper"
           >
             {error}
           </p>
@@ -130,7 +130,7 @@ export function RevokeConfirmModal({
             type="button"
             onClick={close}
             disabled={state === "revoking"}
-            className="inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-950 transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center rounded-md border border-paper/20 bg-ink-900 px-4 text-sm font-semibold text-paper transition hover:bg-ink-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Cancel
           </button>
@@ -139,7 +139,11 @@ export function RevokeConfirmModal({
             type="button"
             onClick={confirmRevoke}
             disabled={state === "revoking"}
-            className="inline-flex min-h-11 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950 disabled:cursor-not-allowed disabled:bg-slate-300"
+            /* Revocation is the one destructive action in the product and it is
+                irreversible on-chain, so it takes the danger colour rather than
+                the gold primary. Red is reserved for exactly this and for the
+                REVOKED / INVALID states it produces. */
+            className="inline-flex min-h-11 items-center justify-center rounded-md bg-danger-500 px-4 text-sm font-semibold text-ink-950 transition hover:bg-danger-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger-400 disabled:cursor-not-allowed disabled:bg-ink-700 disabled:text-paper-muted"
           >
             {state === "revoking" ? "Revoking\u2026" : "Confirm Revoke"}
           </button>

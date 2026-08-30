@@ -52,11 +52,11 @@ export default function SettingsPage() {
 
   if (!wallet) {
     return (
-      <section className="rounded-lg border border-slate-200 bg-white p-8 text-center">
-        <h1 className="text-lg font-semibold text-slate-950">
+      <section className="rounded-lg border border-paper/10 bg-ink-900 p-8 text-center">
+        <h1 className="text-lg font-semibold text-paper">
           Connect your issuer wallet
         </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+        <p className="mx-auto mt-2 max-w-md text-sm text-paper-dim">
           Settings are scoped to your connected institution wallet.
         </p>
       </section>
@@ -66,29 +66,29 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-950">Settings</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <h1 className="text-2xl font-semibold text-paper">Settings</h1>
+        <p className="mt-1 text-sm text-paper-dim">
           Manage your institution's profile and wallet.
         </p>
       </div>
 
       <section>
-        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-paper-muted">
           Institution profile
         </h2>
 
         {institution.status === "loading" || institution.status === "idle" ? (
-          <div className="mt-3 h-40 animate-pulse rounded-lg border border-slate-200 bg-slate-50" />
+          <div className="mt-3 h-40 animate-pulse rounded-lg border border-paper/10 bg-ink-800" />
         ) : null}
 
         {institution.status === "loaded" && institution.profile.status === "NOT_REGISTERED" ? (
-          <div className="mt-3 rounded-lg border border-slate-200 p-5">
-            <p className="text-sm text-slate-700">
+          <div className="mt-3 rounded-lg border border-paper/10 p-5">
+            <p className="text-sm text-paper-dim">
               No institution is registered under this wallet yet.
             </p>
             <Link
               href="/institutions"
-              className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+              className="mt-3 inline-flex min-h-10 items-center justify-center rounded-md bg-gold-500 px-4 text-sm font-semibold text-ink-950 hover:bg-gold-400"
             >
               Start Setup
             </Link>
@@ -96,7 +96,7 @@ export default function SettingsPage() {
         ) : null}
 
         {institution.status === "loaded" && institution.profile.status !== "NOT_REGISTERED" ? (
-          <div className="mt-3 rounded-lg border border-slate-200 p-5">
+          <div className="mt-3 rounded-lg border border-paper/10 p-5">
             <div className="flex items-center justify-between">
               <StatusBadge
                 label={institution.profile.status.replace(/_/g, " ")}
@@ -113,7 +113,7 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setIsEditing(true)}
-                  className="text-sm font-semibold text-slate-950 underline-offset-4 hover:underline"
+                  className="text-sm font-semibold text-paper underline-offset-4 hover:underline"
                 >
                   Edit
                 </button>
@@ -150,7 +150,7 @@ export default function SettingsPage() {
                   onChange={(value) => setInput((c) => ({ ...c, country: value }))}
                 />
                 {error ? (
-                  <p role="alert" className="text-sm text-slate-700">
+                  <p role="alert" className="text-sm text-danger-400">
                     {error}
                   </p>
                 ) : null}
@@ -158,14 +158,14 @@ export default function SettingsPage() {
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="inline-flex min-h-10 items-center justify-center rounded-md bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className="inline-flex min-h-10 items-center justify-center rounded-md bg-gold-500 px-4 text-sm font-semibold text-ink-950 hover:bg-gold-400 disabled:cursor-not-allowed disabled:bg-ink-700 disabled:text-paper-muted"
                   >
                     {isSaving ? "Saving\u2026" : "Save changes"}
                   </button>
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="inline-flex min-h-10 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-semibold text-slate-950 hover:bg-slate-50"
+                    className="inline-flex min-h-10 items-center justify-center rounded-md border border-paper/20 px-4 text-sm font-semibold text-paper hover:bg-ink-850"
                   >
                     Cancel
                   </button>
@@ -177,15 +177,15 @@ export default function SettingsPage() {
       </section>
 
       <section id="security">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-paper-muted">
           Security
         </h2>
-        <div className="mt-3 rounded-lg border border-slate-200 p-5">
+        <div className="mt-3 rounded-lg border border-paper/10 p-5">
           <Field label="Connected Wallet" value={wallet.walletName} />
           <div className="mt-3">
             <Field label="Wallet Address" value={wallet.address} mono />
           </div>
-          <p className="mt-4 text-xs text-slate-500">
+          <p className="mt-4 text-xs text-paper-muted">
             This dashboard never sends witness data or private key material
             to the server — only the public wallet address is used to
             identify your institution.
@@ -199,10 +199,10 @@ export default function SettingsPage() {
 function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <dt className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">
+      <dt className="text-xs font-semibold uppercase tracking-[0.1em] text-paper-muted">
         {label}
       </dt>
-      <dd className={`mt-1 break-all text-sm text-slate-950 ${mono ? "font-mono" : ""}`}>
+      <dd className={`mt-1 break-all text-sm text-paper ${mono ? "font-mono" : ""}`}>
         {value || "—"}
       </dd>
     </div>
@@ -220,12 +220,12 @@ function TextField({
 }) {
   return (
     <div>
-      <label className="text-sm font-medium text-slate-800">{label}</label>
+      <label className="text-sm font-medium text-paper">{label}</label>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         required
-        className="mt-2 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
+        className="mt-2 min-h-11 w-full rounded-md border border-paper/20 bg-ink-800 px-3 text-sm text-paper outline-none transition focus:border-gold-500 focus:ring-2 focus:ring-gold-500/10"
       />
     </div>
   );

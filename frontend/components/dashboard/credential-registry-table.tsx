@@ -94,11 +94,11 @@ export function CredentialRegistryTable() {
 
   if (!wallet) {
     return (
-      <section className="rounded-lg border border-slate-200 bg-white p-8 text-center">
-        <h1 className="text-lg font-semibold text-slate-950">
+      <section className="rounded-lg border border-paper/10 bg-ink-900 p-8 text-center">
+        <h1 className="text-lg font-semibold text-paper">
           Connect your issuer wallet
         </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+        <p className="mx-auto mt-2 max-w-md text-sm text-paper-dim">
           The registry is scoped to credentials issued by your institution's
           wallet, so it's hidden until you connect.
         </p>
@@ -108,14 +108,14 @@ export function CredentialRegistryTable() {
 
   return (
     <section>
-      <h1 className="text-2xl font-semibold text-slate-950">Issued Credential Registry</h1>
-      <p className="mt-1 text-sm text-slate-600">
+      <h1 className="text-2xl font-semibold text-paper">Issued Credential Registry</h1>
+      <p className="mt-1 text-sm text-paper-dim">
         Search, download certificates, or revoke credentials your institution
         has issued.
       </p>
 
-      <div className="mt-6 rounded-lg border border-slate-200">
-        <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-6 rounded-lg border border-paper/10">
+        <div className="flex flex-col gap-3 border-b border-paper/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1">
             <label htmlFor="registry-search" className="sr-only">
               Search credentials
@@ -125,7 +125,7 @@ export function CredentialRegistryTable() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by student name, ID, or degree"
-              className="min-h-11 w-full max-w-sm rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
+              className="min-h-11 w-full max-w-sm rounded-md border border-paper/20 bg-ink-800 px-3 text-sm text-paper outline-none transition placeholder:text-paper-muted focus:border-gold-500 focus:ring-2 focus:ring-gold-500/10"
             />
           </div>
           <div>
@@ -136,7 +136,7 @@ export function CredentialRegistryTable() {
               id="registry-filter"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as CredentialStatusFilter)}
-              className="min-h-11 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950 outline-none transition focus:border-slate-950 focus:ring-2 focus:ring-slate-950/10"
+              className="min-h-11 rounded-md border border-paper/20 bg-ink-800 px-3 text-sm text-paper outline-none transition focus:border-gold-500 focus:ring-2 focus:ring-gold-500/10"
             >
               <option value="ALL">All statuses</option>
               <option value="ACTIVE">Active</option>
@@ -148,19 +148,19 @@ export function CredentialRegistryTable() {
         {loadState.status === "loading" ? <RegistrySkeleton /> : null}
 
         {loadState.status === "error" ? (
-          <p role="alert" className="p-6 text-sm text-slate-700">
+          <p role="alert" className="p-6 text-sm text-danger-400">
             {loadState.message}
           </p>
         ) : null}
 
         {loadState.status === "loaded" && loadState.items.length === 0 ? (
-          <p className="p-6 text-sm text-slate-600">No credentials match your search.</p>
+          <p className="p-6 text-sm text-paper-dim">No credentials match your search.</p>
         ) : null}
 
         {loadState.status === "loaded" && loadState.items.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+              <thead className="border-b border-paper/10 text-xs font-semibold uppercase tracking-[0.08em] text-paper-muted">
                 <tr>
                   <th scope="col" className="px-5 py-3">Student &amp; Degree</th>
                   <th scope="col" className="px-5 py-3">Credential ID</th>
@@ -171,12 +171,12 @@ export function CredentialRegistryTable() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-paper/10">
                 {loadState.items.map((item) => (
                   <tr key={item.id}>
                     <td className="px-5 py-4 align-top">
-                      <p className="font-semibold text-slate-950">{item.studentName}</p>
-                      <p className="text-slate-600">{item.degree}</p>
+                      <p className="font-semibold text-paper">{item.studentName}</p>
+                      <p className="text-paper-dim">{item.degree}</p>
                     </td>
                     {/* The credential id — the value that actually resolves at
                         /verify/<id>. This column previously rendered and copied
@@ -185,7 +185,7 @@ export function CredentialRegistryTable() {
                         other control in this row already keys off item.id. */}
                     <td className="px-5 py-4 align-top">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-slate-800">
+                        <span className="font-mono text-paper">
                           {truncateMiddle(item.id, 6)}
                         </span>
                         <CopyButton
@@ -195,7 +195,7 @@ export function CredentialRegistryTable() {
                         />
                       </div>
                     </td>
-                    <td className="px-5 py-4 align-top text-slate-700">
+                    <td className="px-5 py-4 align-top text-paper-dim">
                       {formatDate(item.issuedAt)}
                     </td>
                     <td className="px-5 py-4 align-top">
@@ -216,14 +216,14 @@ export function CredentialRegistryTable() {
                         <div className="flex flex-wrap gap-2">
                           <Link
                             href={`/verify/${encodeURIComponent(item.id)}`}
-                            className="text-sm font-semibold text-slate-950 underline-offset-4 hover:underline"
+                            className="text-sm font-semibold text-paper underline-offset-4 hover:underline"
                           >
                             View public page
                           </Link>
                           <button
                             type="button"
                             onClick={() => handleDownload(item)}
-                            className="text-sm font-semibold text-slate-700 underline-offset-4 hover:underline"
+                            className="text-sm font-semibold text-paper-dim underline-offset-4 hover:underline"
                           >
                             Download certificate
                           </button>
@@ -234,14 +234,14 @@ export function CredentialRegistryTable() {
                               }}
                               type="button"
                               onClick={() => setRevokeTarget(item)}
-                              className="text-sm font-semibold text-slate-950 underline decoration-dotted underline-offset-4 hover:decoration-solid"
+                              className="text-sm font-semibold text-paper underline decoration-dotted underline-offset-4 hover:decoration-solid"
                             >
                               Revoke
                             </button>
                           ) : null}
                         </div>
                         {downloadError?.id === item.id ? (
-                          <p role="alert" className="text-xs text-slate-600">
+                          <p role="alert" className="text-xs text-danger-400">
                             {downloadError.message}
                           </p>
                         ) : null}
@@ -272,7 +272,7 @@ function RegistrySkeleton() {
   return (
     <div className="space-y-3 p-5" role="status" aria-label="Loading credentials">
       {[0, 1, 2].map((row) => (
-        <div key={row} className="h-14 animate-pulse rounded-md bg-slate-100" />
+        <div key={row} className="h-14 animate-pulse rounded-md bg-ink-800" />
       ))}
     </div>
   );

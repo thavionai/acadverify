@@ -1,7 +1,6 @@
 "use client";
 
 import { PublicNav } from "@/components/public/public-nav";
-import { TrustStrip } from "@/components/public/trust-strip";
 import { SetupWizard } from "@/components/institutions/setup-wizard";
 import { IconAward, IconGraduationCap, IconShieldCheck } from "@/components/icons";
 
@@ -27,18 +26,18 @@ export function InstitutionsPageClient() {
   return (
     <>
       <PublicNav />
-      <main className="bg-white">
+      <main className="flex-1 bg-ink-950">
         <section className="mx-auto max-w-4xl px-5 pb-12 pt-16 text-center sm:px-8">
-          <h1 className="text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-paper sm:text-5xl">
             Bring your institution onto AcadVerify
           </h1>
-          <p className="mx-auto mt-4 max-w-xl text-lg text-slate-600">
+          <p className="mx-auto mt-4 max-w-xl text-lg text-paper-dim">
             Register your university to start issuing zero-knowledge academic
             credentials your graduates can prove, and employers can trust.
           </p>
           <a
             href="#setup"
-            className="mt-8 inline-flex min-h-12 items-center justify-center rounded-md bg-slate-950 px-6 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="mt-8 inline-flex min-h-12 items-center justify-center rounded-md bg-gold-500 px-6 text-sm font-semibold text-ink-950 transition hover:bg-gold-400"
           >
             Start Setup
           </a>
@@ -47,22 +46,21 @@ export function InstitutionsPageClient() {
         <section className="mx-auto max-w-5xl px-5 pb-16 sm:px-8">
           <div className="grid gap-5 sm:grid-cols-3">
             {BENEFITS.map((benefit) => (
-              <div key={benefit.title} className="rounded-lg border border-slate-200 p-6">
-                <span className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-950">
+              <div key={benefit.title} className="rounded-lg border border-paper/10 p-6">
+                <span className="flex h-10 w-10 items-center justify-center rounded-md bg-ink-800 text-paper">
                   <benefit.icon className="h-5 w-5" aria-hidden />
                 </span>
-                <h2 className="mt-4 font-semibold text-slate-950">{benefit.title}</h2>
-                <p className="mt-2 text-sm text-slate-600">{benefit.description}</p>
+                <h2 className="mt-4 font-semibold text-paper">{benefit.title}</h2>
+                <p className="mt-2 text-sm text-paper-dim">{benefit.description}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="bg-slate-50 px-5 py-16 sm:px-8">
+        <section className="bg-ink-950 px-5 py-16 sm:px-8">
           <SetupWizard />
         </section>
 
-        <TrustStrip />
       </main>
     </>
   );

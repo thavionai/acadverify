@@ -34,11 +34,11 @@ export default function DashboardPage() {
 
   if (!wallet) {
     return (
-      <section className="rounded-lg border border-slate-200 bg-white p-8 text-center">
-        <h1 className="text-xl font-semibold text-slate-950">
+      <section className="rounded-lg border border-paper/10 bg-ink-900 p-8 text-center">
+        <h1 className="text-xl font-semibold text-paper">
           Connect your issuer wallet
         </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+        <p className="mx-auto mt-2 max-w-md text-sm text-paper-dim">
           Connect your institution's Midnight wallet from the top right to
           issue and manage credentials.
         </p>
@@ -49,8 +49,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-950">Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <h1 className="text-2xl font-semibold text-paper">Dashboard</h1>
+        <p className="mt-1 text-sm text-paper-dim">
           An overview of your institution's credential activity.
         </p>
       </div>
@@ -62,7 +62,7 @@ export default function DashboardPage() {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-paper-muted">
           Quick actions
         </h2>
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
@@ -92,11 +92,11 @@ export default function DashboardPage() {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-lg border border-slate-200 p-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+    <div className="rounded-lg border border-paper/10 p-5">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-paper-muted">
         {label}
       </p>
-      <p className="mt-2 text-3xl font-semibold text-slate-950">{value}</p>
+      <p className="mt-2 text-3xl font-semibold text-paper">{value}</p>
     </div>
   );
 }
@@ -115,13 +115,13 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="flex flex-col rounded-lg border border-slate-200 p-5 transition hover:border-slate-950"
+      className="flex flex-col rounded-lg border border-paper/10 p-5 transition hover:border-gold-500"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-950">
+      <span className="flex h-9 w-9 items-center justify-center rounded-md bg-ink-800 text-paper">
         <Icon className="h-5 w-5" aria-hidden />
       </span>
-      <p className="mt-3 font-semibold text-slate-950">{title}</p>
-      <p className="mt-1 text-sm text-slate-600">{description}</p>
+      <p className="mt-3 font-semibold text-paper">{title}</p>
+      <p className="mt-1 text-sm text-paper-dim">{description}</p>
     </Link>
   );
 }
