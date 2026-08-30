@@ -199,3 +199,179 @@ async def test_issuance_returns_a_hold_url_and_stores_only_its_hash(monkeypatch)
     assert token not in json.dumps(item.model_dump(mode="json"))
     # Nor the student's name -- the index has never stored identity.
     assert "Ada Lovelace" not in json.dumps(item.model_dump(mode="json"))
+
+
+# ---------------------------------------------------------------------------
+# Bundles: a degree plus everything else the university attested
+# ---------------------------------------------------------------------------
+
+def _attestation(
+    token: str,
+    credential_id: str,
+    kind: str = "course",
+    label: str = "Course · Algorithms",
+) -> CredentialIndexItem:
+    item = _index_item(token, credential_id)
+    item.credential_type = label
+    item.attestation_kind = kind
+    return item
+
+
+@pytest.fixture
+def bundle_stack(monkeypatch, isolated_store):
+    """Like `stack`, but proves each credential independently."""
+
+    def _install(items: list[CredentialIndexItem], chains: dict[str, dict]):
+        async def _scan():
+            return items
+
+        async def _verify_proof(credential_id, **_kwargs):
+            return chains[credential_id]
+
+        monkeypatch.setattr(holder.dynamo_client, "scan_credentials", _scan)
+        monkeypatch.setattr(holder.chain_service_client, "verify_proof", _verify_proof)
+
+    return _install
+
+
+async def test_one_link_opens_the_degree_and_every_attestation(bundle_stack):
+    bundle_stack(
+        [
+            _index_item("tok", "degree-1"),
+            _attestation("tok", "att-1", "course", "Course · Algorithms"),
+            _attestation("tok", "att-2", "honor", "Honor · Deans List"),
+        ],
+        {
+            "degree-1": _chain(gpa_times_100=390),
+            "att-1": _chain(gpa_times_100=380),
+            "att-2": _chain(gpa_times_100=0),
+        },
+    )
+
+    result = await holder.get_my_credential("tok")
+
+    assert result["credential"]["id"] == "degree-1"
+    assert [a["id"] for a in result["attestations"]] == ["att-1", "att-2"]
+    assert [a["kind"] for a in result["attestations"]] == ["course", "honor"]
+    assert result["attestations"][0]["degree"] == "Course · Algorithms"
+
+
+async def test_the_degree_is_the_primary_whatever_order_the_scan_returns(bundle_stack):
+    """A scan has no ordering guarantee; the degree is found by what it is."""
+    bundle_stack(
+        [
+            _attestation("tok", "att-1"),
+            _attestation("tok", "att-2", "honor", "Honor · Deans List"),
+            _index_item("tok", "degree-1"),
+        ],
+        {cid: _chain() for cid in ("degree-1", "att-1", "att-2")},
+    )
+
+    result = await holder.get_my_credential("tok")
+
+    assert result["credential"]["id"] == "degree-1"
+    assert len(result["attestations"]) == 2
+
+
+async def test_a_gradeless_attestation_reads_as_no_grade_not_zero(bundle_stack):
+    """
+    The chain cannot store an absent number, so a course with no grade arrives
+    as 0. Rendering that as 0.00 would libel the graduate.
+    """
+    bundle_stack(
+        [
+            _index_item("tok", "degree-1"),
+            _attestation("tok", "att-1"),
+        ],
+        {"degree-1": _chain(gpa_times_100=0), "att-1": _chain(gpa_times_100=0)},
+    )
+
+    result = await holder.get_my_credential("tok")
+
+    assert result["attestations"][0]["gpa"] is None
+    # The degree keeps the strict reading: a 0.00 GPA there is real data.
+    assert result["credential"]["gpa"] == 0.0
+
+
+async def test_a_single_credential_still_answers_the_old_shape(bundle_stack):
+    bundle_stack([_index_item("tok", "degree-1")], {"degree-1": _chain()})
+
+    result = await holder.get_my_credential("tok")
+
+    assert result["credential"]["id"] == "degree-1"
+    assert result["grants"] == []
+    assert result["attestations"] == []
+
+
+async def test_each_attestation_carries_its_own_share_links(bundle_stack):
+    bundle_stack(
+        [_index_item("tok", "degree-1"), _attestation("tok", "att-1")],
+        {"degree-1": _chain(), "att-1": _chain()},
+    )
+
+    await holder.create_grant(
+        holder.CreateGrantRequest(revealGpa=True, credentialId="att-1"), "tok"
+    )
+
+    result = await holder.get_my_credential("tok")
+
+    assert result["grants"] == [], "the degree has none"
+    (grant,) = result["attestations"][0]["grants"]
+    assert grant["revealGpa"] is True
+    assert "att-1" in grant["verifyUrl"]
+
+
+async def test_a_grant_defaults_to_the_degree(bundle_stack):
+    bundle_stack(
+        [_index_item("tok", "degree-1"), _attestation("tok", "att-1")],
+        {"degree-1": _chain(), "att-1": _chain()},
+    )
+
+    grant = await holder.create_grant(holder.CreateGrantRequest(revealGpa=False), "tok")
+
+    assert "degree-1" in grant["verifyUrl"]
+
+
+async def test_a_credential_this_link_does_not_open_is_simply_not_found(bundle_stack):
+    """
+    A valid token must not become an oracle for which credential ids exist.
+    """
+    bundle_stack([_index_item("tok", "degree-1")], {"degree-1": _chain()})
+
+    response = await holder.create_grant(
+        holder.CreateGrantRequest(revealGpa=True, credentialId="someone-elses"), "tok"
+    )
+
+    assert response.status_code == 404
+    assert _body(response)["error"]["message"] == holder._NO_CREDENTIAL[1]
+
+
+async def test_revoking_finds_the_grant_anywhere_in_the_bundle(bundle_stack):
+    bundle_stack(
+        [_index_item("tok", "degree-1"), _attestation("tok", "att-1")],
+        {"degree-1": _chain(), "att-1": _chain()},
+    )
+    grant = await holder.create_grant(
+        holder.CreateGrantRequest(revealGpa=True, credentialId="att-1"), "tok"
+    )
+
+    result = await holder.revoke_grant(grant["grantId"], "tok")
+
+    assert result["revoked"] is True
+    assert share_grants.get_active_grant(grant["grantId"]) is None
+
+
+async def test_a_revoked_attestation_grant_still_lists_as_revoked(bundle_stack):
+    bundle_stack(
+        [_index_item("tok", "degree-1"), _attestation("tok", "att-1")],
+        {"degree-1": _chain(), "att-1": _chain()},
+    )
+    grant = await holder.create_grant(
+        holder.CreateGrantRequest(revealGpa=True, credentialId="att-1"), "tok"
+    )
+    await holder.revoke_grant(grant["grantId"], "tok")
+
+    result = await holder.get_my_credential("tok")
+
+    (listed,) = result["attestations"][0]["grants"]
+    assert listed["revoked"] is True

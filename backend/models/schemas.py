@@ -39,6 +39,12 @@ class CredentialIndexItem(BaseModel):
     # Non-sensitive search aid, e.g. a program/degree category. Deliberately
     # does NOT include grades, GPA, or student identity.
     credential_type: str | None = None
+    # None means this row IS the degree. Anything else -- "course", "honor",
+    # "extracurricular", "certification", "research" -- is an additional
+    # attestation sharing the degree's holder_token_hash, which is what makes
+    # one student access link open the whole set. Absent on every row written
+    # before attestations existed, hence the default.
+    attestation_kind: str | None = None
     # Cohort year only — displayed in the issuer dashboard registry. Still
     # no student identity.
     graduation_year: int | None = None

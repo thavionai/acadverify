@@ -9,7 +9,7 @@
  * boundary (`page.route`) so it exercises real frontend code without
  * depending on a live chain-service/proof server.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 const CREDENTIAL_ID = "cred_test123";
 const HOLDER_TOKEN = "holder-token-e2e";
@@ -52,8 +52,27 @@ function verificationPayload(status: "VALID" | "REVOKED" | "INVALID_PROOF", disc
   };
 }
 
+/**
+ * Get to a connected wallet, however the page arrived there.
+ *
+ * A full page load drops the in-memory connection, but the hook also restores
+ * an already-authorised wallet from localStorage on mount -- so after a goto()
+ * the button may or may not still be there, depending on which won the race.
+ * Insisting on clicking it makes the test fail precisely when the product
+ * behaved BETTER than expected.
+ */
+async function ensureWalletConnected(page: Page) {
+  const connect = page.getByRole("button", { name: "Connect Wallet" });
+  await expect(connect.or(page.getByRole("button", { name: "Disconnect" })).first())
+    .toBeVisible({ timeout: 30_000 });
+  if (await connect.isVisible().catch(() => false)) await connect.click();
+  await expect(page.getByRole("button", { name: "Disconnect" })).toBeVisible({
+    timeout: 30_000,
+  });
+}
+
 test.describe("critical credential lifecycle", () => {
-  test("issue, verify, consent toggle, revoke, re-verify", async ({ page }) => {
+  test("issue, verify, holder grants, revoke, re-verify", async ({ page }) => {
     let issued = false;
     let revoked = false;
 
@@ -260,7 +279,7 @@ test.describe("critical credential lifecycle", () => {
     // 7. Revoke from the dashboard. goto() is a full page load, which drops
     // the in-memory wallet connection — reconnect before acting.
     await page.goto("/dashboard/registry");
-    await page.getByRole("button", { name: "Connect Wallet" }).click();
+    await ensureWalletConnected(page);
     await page.getByRole("button", { name: "Revoke" }).click();
     await page.getByRole("button", { name: "Confirm Revoke" }).click();
     // Scoped to the table: "Revoked" also appears in the status filter

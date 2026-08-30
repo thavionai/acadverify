@@ -11,7 +11,7 @@
  * The tamper/forge step needs ALLOW_DEBUG_ENDPOINTS=true on chain-service
  * and is skipped when the debug endpoint is disabled.
  */
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 const ISSUER_ADDRESS = "mn_shield-addr_e2e_live1";
 const CHAIN_SERVICE_URL = process.env.CHAIN_SERVICE_URL ?? "http://localhost:8090";
@@ -24,6 +24,25 @@ const STUDENT = {
   graduation: "2026-06-15",
   gpa: "3.72",
 };
+
+/**
+ * Get to a connected wallet, however the page arrived there.
+ *
+ * A full page load drops the in-memory connection, but the hook also restores
+ * an already-authorised wallet from localStorage on mount -- so after a goto()
+ * the button may or may not still be there, depending on which won the race.
+ * Insisting on clicking it makes the test fail precisely when the product
+ * behaved BETTER than expected.
+ */
+async function ensureWalletConnected(page: Page) {
+  const connect = page.getByRole("button", { name: "Connect Wallet" });
+  await expect(connect.or(page.getByRole("button", { name: "Disconnect" })).first())
+    .toBeVisible({ timeout: 30_000 });
+  if (await connect.isVisible().catch(() => false)) await connect.click();
+  await expect(page.getByRole("button", { name: "Disconnect" })).toBeVisible({
+    timeout: 30_000,
+  });
+}
 
 test.describe("live credential lifecycle (real chain)", () => {
   test.beforeEach(async ({ page }) => {
@@ -54,7 +73,7 @@ test.describe("live credential lifecycle (real chain)", () => {
     );
   });
 
-  test("issue -> verify -> consent -> revoke -> re-verify -> forge", async ({ page, request }) => {
+  test("issue -> verify -> holder grants -> revoke -> re-verify -> forge", async ({ page, request }) => {
     // --- 0. Onboard the institution (the issue form is gated on an
     // AUTHORIZED institution profile) — through the real backend API. ---
     const onboard = await request.put("http://localhost:8080/api/v1/institutions/me", {
@@ -118,8 +137,15 @@ test.describe("live credential lifecycle (real chain)", () => {
     // --- 5. Only the graduate can. From their own access link they mint a
     // share link including the GPA, and that link discloses it. ---
     await page.goto(new URL(holdUrl).pathname);
-    await expect(page.getByText("Your credential")).toBeVisible({ timeout: 60_000 });
-    await page.getByRole("button", { name: "Share including GPA" }).click();
+    // The heading by role: "Your credential" also matches the loading line
+    // ("Proving your credential…"), and the button below only appears once
+    // the real proof has landed anyway.
+    await expect(
+      page.getByRole("heading", { name: "Your credential" }),
+    ).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Share including GPA" }).click({
+      timeout: 90_000,
+    });
 
     const grantLink = page.locator("li", { hasText: "Includes your GPA" }).first();
     await expect(grantLink).toBeVisible({ timeout: 30_000 });
@@ -132,7 +158,7 @@ test.describe("live credential lifecycle (real chain)", () => {
     // --- 6. Revoke from the dashboard (real proof, ~25s). goto() is a full
     // reload, which drops the in-memory wallet — reconnect first. ---
     await page.goto("/dashboard/registry");
-    await page.getByRole("button", { name: "Connect Wallet" }).click();
+    await ensureWalletConnected(page);
     const revokeResponse = page.waitForResponse(
       (r) => r.url().includes("/revoke") && r.request().method() === "POST",
       { timeout: 120_000 },
