@@ -118,7 +118,12 @@ async def verify_credential_public(
     proof = raw.get("proof") or {}
     gpa_times_100 = raw_disclosed.get("gpaTimes100")
     checked_at = evidence.get("checkedAt", datetime.now(timezone.utc).isoformat())
-    tx_id = evidence.get("issuanceTxId", "")
+    # Live proving returns no transaction id -- verification is a read against
+    # contract state and submits nothing, so there is no tx of its own. The
+    # transaction worth showing is the ISSUANCE that anchored this credential,
+    # which the index recorded at the time. In mock mode the adapter supplies
+    # one; without this fallback the field simply rendered blank on live.
+    tx_id = evidence.get("issuanceTxId") or (index_entry.chain_proof_ref or "")
 
     # A proof that did not succeed disclosed NOTHING, and that has to include
     # the two human-readable fields as well.
