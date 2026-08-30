@@ -122,6 +122,8 @@ export type IssueCredentialInput = {
   // Optional. Used once to send the access link, then dropped — the server
   // stores no student identity, so there is no resend.
   studentEmail?: string;
+  // Each becomes its own on-chain credential sharing the same access link.
+  attestations?: AttestationInput[];
   studentId: string;
   degree: string;
   institution: string;
@@ -158,6 +160,15 @@ export type IssuedCredential = {
   // Three states, not two: null means no address was given, false means one
   // was and the send failed — in which case holdUrl above is the only copy.
   emailSent?: boolean | null;
+  // Per-item, because one attestation can fail while the rest succeed.
+  attestations?: Array<{
+    id: string;
+    kind: AttestationKind;
+    title: string;
+    txId: string;
+    verifyUrl: string;
+    ok: boolean;
+  }>;
 };
 
 export type RevokeCredentialResult = {
@@ -220,9 +231,44 @@ export type HolderCredential = {
   verifyUrl: string;
 };
 
+/** What a university can attest beyond the degree itself. */
+export type AttestationKind =
+  | "course"
+  | "honor"
+  | "extracurricular"
+  | "certification"
+  | "research";
+
+export const ATTESTATION_KIND_LABELS: Record<AttestationKind, string> = {
+  course: "Course",
+  honor: "Honor",
+  extracurricular: "Extracurricular",
+  certification: "Certification",
+  research: "Research",
+};
+
+/** One row of the issue form's attestation repeater. */
+export type AttestationInput = {
+  kind: AttestationKind;
+  title: string;
+  grade: string;
+  year: string;
+};
+
+/**
+ * An attestation as the holder sees it: a full credential in its own right,
+ * with its own proof status and its own share links.
+ */
+export type HolderAttestation = HolderCredential & {
+  kind: AttestationKind;
+  grants: ShareGrant[];
+};
+
 export type HolderPortalData = {
   credential: HolderCredential;
   grants: ShareGrant[];
+  // Optional so a response from a backend without attestations still parses.
+  attestations?: HolderAttestation[];
 };
 
 // ---------------------------------------------------------------------------

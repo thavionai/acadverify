@@ -8,7 +8,12 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { IconAlertTriangle, IconCheck, IconX } from "@/components/icons";
 import { createShareGrant, getHolderPortal, revokeShareGrant } from "@/lib/api";
 import { formatDate, formatDisclosedValue } from "@/lib/format";
-import type { HolderPortalData } from "@/lib/types";
+import { ATTESTATION_KIND_LABELS } from "@/lib/types";
+import type {
+  HolderAttestation,
+  HolderPortalData,
+  ShareGrant,
+} from "@/lib/types";
 
 /**
  * The graduate's own view.
@@ -75,9 +80,10 @@ export function HolderView({ token }: { token: string }) {
     return () => controller.abort();
   }, [refresh]);
 
-  async function share(revealGpa: boolean) {
+  // credentialId omitted means the degree — attestation cards pass their own.
+  async function share(revealGpa: boolean, credentialId?: string) {
     setBusy(true);
-    await createShareGrant(token, revealGpa);
+    await createShareGrant(token, revealGpa, { credentialId });
     await refresh();
     setBusy(false);
   }
@@ -127,11 +133,34 @@ export function HolderView({ token }: { token: string }) {
             <div className="mt-10 space-y-8">
               <CredentialCard data={load.data} />
               <ShareLinks
-                data={load.data}
+                grants={load.data.grants}
                 busy={busy}
-                onShare={share}
+                gpaLabel="Share including GPA"
+                onShare={(revealGpa) => share(revealGpa)}
                 onRevoke={revoke}
               />
+              {(load.data.attestations ?? []).length > 0 ? (
+                <section>
+                  <h2 className="text-xl font-semibold text-paper">
+                    Also on your record
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-pretty leading-relaxed text-paper-dim">
+                    Each of these is proven separately, so you can show one
+                    course to one employer without showing them the rest.
+                  </p>
+                  <div className="mt-6 space-y-6">
+                    {(load.data.attestations ?? []).map((attestation) => (
+                      <AttestationCard
+                        key={attestation.id}
+                        attestation={attestation}
+                        busy={busy}
+                        onShare={(revealGpa) => share(revealGpa, attestation.id)}
+                        onRevoke={revoke}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
               <ResumeChecker token={token} />
             </div>
           ) : null}
@@ -196,50 +225,143 @@ function Field({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function ShareLinks({
-  data,
+function AttestationCard({
+  attestation,
   busy,
   onShare,
   onRevoke,
 }: {
-  data: HolderPortalData;
+  attestation: HolderAttestation;
   busy: boolean;
   onShare: (revealGpa: boolean) => void;
   onRevoke: (grantId: string) => void;
 }) {
-  const live = data.grants.filter((grant) => !grant.revoked);
-  const revoked = data.grants.filter((grant) => grant.revoked);
+  // The stored title is prefixed with its kind for the registry's benefit;
+  // here the kind is already a chip, so strip it rather than say it twice.
+  const title =
+    attestation.degree?.replace(/^[^·]+·\s*/, "") ?? "Not currently provable";
+  // No grade recorded is not a grade of zero. The backend reports it as null,
+  // and with nothing to reveal there is nothing to choose about revealing.
+  const hasGrade = attestation.gpa !== null;
+  const attestationStatus =
+    STATUS_CONTENT[attestation.status] ?? STATUS_CONTENT.INVALID_PROOF;
 
   return (
-    <section className="rounded-lg border border-paper/10 bg-ink-900 p-6 sm:p-8">
-      <h2 className="text-xl font-semibold text-paper">Share links</h2>
-      <p className="mt-2 max-w-2xl text-pretty leading-relaxed text-paper-dim">
-        Make one link per employer. Each carries only what you chose, and you
-        can switch it off the moment they no longer need it.
-      </p>
+    <article className="rounded-lg border border-paper/10 bg-ink-900 p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-[0.14em] text-gold-500">
+            {ATTESTATION_KIND_LABELS[attestation.kind] ?? attestation.kind}
+          </span>
+          <h3 className="mt-1 text-lg font-semibold text-paper">{title}</h3>
+        </div>
+        <StatusBadge
+          label={attestationStatus.label}
+          tone={attestationStatus.tone}
+          icon={<attestationStatus.icon className="h-3.5 w-3.5" />}
+        />
+      </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <dl className="mt-5 grid gap-5 sm:grid-cols-3">
+        <Field
+          label="Grade"
+          value={hasGrade ? formatDisclosedValue("gpa", attestation.gpa) : "Not recorded"}
+        />
+        <Field
+          label="Year"
+          value={
+            attestation.graduationYear === null
+              ? null
+              : String(attestation.graduationYear)
+          }
+        />
+        <Field label="Institution" value={attestation.institution} />
+      </dl>
+
+      <div className="mt-5 border-t border-paper/10 pt-5">
+        <ShareLinks
+          grants={attestation.grants}
+          busy={busy}
+          gpaLabel={hasGrade ? "Share including grade" : null}
+          heading="Share links for this"
+          blurb={
+            hasGrade
+              ? undefined
+              : "There is no grade on this one, so a link shows only that it exists and is genuine."
+          }
+          onShare={onShare}
+          onRevoke={onRevoke}
+        />
+      </div>
+    </article>
+  );
+}
+
+function ShareLinks({
+  grants,
+  busy,
+  gpaLabel,
+  heading,
+  blurb,
+  onShare,
+  onRevoke,
+}: {
+  grants: ShareGrant[];
+  busy: boolean;
+  // Null hides the button entirely: an attestation with no grade recorded has
+  // nothing to reveal, and the chain would answer such a link with 0.00.
+  gpaLabel: string | null;
+  heading?: string;
+  blurb?: string;
+  onShare: (revealGpa: boolean) => void;
+  onRevoke: (grantId: string) => void;
+}) {
+  const live = grants.filter((grant) => !grant.revoked);
+  const revoked = grants.filter((grant) => grant.revoked);
+
+  return (
+    <section className={heading === undefined ? "rounded-lg border border-paper/10 bg-ink-900 p-6 sm:p-8" : ""}>
+      {heading === undefined ? (
+        <>
+          <h2 className="text-xl font-semibold text-paper">Share links</h2>
+          <p className="mt-2 max-w-2xl text-pretty leading-relaxed text-paper-dim">
+            Make one link per employer. Each carries only what you chose, and
+            you can switch it off the moment they no longer need it.
+          </p>
+        </>
+      ) : (
+        <>
+          <h3 className="text-sm font-semibold text-paper">{heading}</h3>
+          {blurb ? (
+            <p className="mt-1 text-sm leading-relaxed text-paper-dim">{blurb}</p>
+          ) : null}
+        </>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-3">
         <button
           type="button"
           disabled={busy}
           onClick={() => onShare(false)}
           className="inline-flex min-h-12 items-center justify-center rounded-md border border-paper/25 px-5 text-sm font-semibold text-paper transition hover:border-gold-500 hover:text-gold-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          Share without GPA
+          {gpaLabel === null ? "Create share link" : "Share without GPA"}
         </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onShare(true)}
-          className="inline-flex min-h-12 items-center justify-center rounded-md bg-gold-500 px-5 text-sm font-semibold text-ink-950 transition hover:bg-gold-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 disabled:cursor-not-allowed disabled:bg-ink-700 disabled:text-paper-muted"
-        >
-          Share including GPA
-        </button>
+        {gpaLabel !== null ? (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onShare(true)}
+            className="inline-flex min-h-12 items-center justify-center rounded-md bg-gold-500 px-5 text-sm font-semibold text-ink-950 transition hover:bg-gold-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 disabled:cursor-not-allowed disabled:bg-ink-700 disabled:text-paper-muted"
+          >
+            {gpaLabel}
+          </button>
+        ) : null}
       </div>
 
       {live.length === 0 ? (
-        <p className="mt-6 text-sm text-paper-muted">
-          You have not shared this credential with anyone yet.
+        <p className="mt-5 text-sm text-paper-muted">
+          You have not shared this with anyone yet.
         </p>
       ) : (
         <ul className="mt-6 space-y-3">
@@ -250,7 +372,13 @@ function ShareLinks({
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-paper">
-                  {grant.revealGpa ? "Includes your GPA" : "GPA withheld"}
+                  {grant.revealGpa
+                    ? gpaLabel === null
+                      ? "Full link"
+                      : "Includes your GPA"
+                    : gpaLabel === null
+                      ? "Link"
+                      : "GPA withheld"}
                 </span>
                 <span className="text-xs text-paper-muted">
                   created {formatDate(grant.createdAt)}

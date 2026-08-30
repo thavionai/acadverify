@@ -35,6 +35,52 @@ and certificates printed before share links existed keep resolving.
 belongs to a different credential. All three return an identical body: a
 verifier must not be able to probe whether a grant ever existed.
 
+### `POST /credentials` — issuance
+
+Two optional fields beyond the degree:
+
+```json
+{
+  "studentEmail": "grad@example.edu",
+  "attestations": [
+    { "kind": "course|honor|extracurricular|certification|research",
+      "title": "Algorithms", "grade": "3.8", "year": "2025" }
+  ]
+}
+```
+
+Each attestation is issued as **its own on-chain credential** — own id, own
+salt, own commitment — sharing the degree's holder token, so one student access
+link opens the whole set. At most 10 per request; an unknown `kind` or an
+eleventh row is rejected **before** anything reaches the chain, since a
+rejected request must leave nothing behind. Rows with a blank title are
+dropped silently (they are the form's empty repeater slots).
+
+A grade the ledger cannot hold — a letter, or a number outside `[0, 655.35]`,
+which is the `uint16` `gpaTimes100` range — is recorded as **absent** rather
+than failing the attestation. The grade can be written into the title instead.
+
+The 201 gains two keys:
+
+```json
+{
+  "emailSent": true,
+  "attestations": [
+    { "id": "…", "kind": "course", "title": "Algorithms",
+      "txId": "0x…", "verifyUrl": "…", "ok": true }
+  ]
+}
+```
+
+`emailSent` has three states: `null` (no address given), `true`, and `false`
+(an address was given and the send failed — `holdUrl` is then the only copy).
+Failure is never fatal: the credential is already on-chain and the token is
+unreconstructable, so an unroutable address must not cost the response.
+
+`attestations[].ok` is per item. A rejected attestation is `false` and the
+rest continue; a chain **outage** abandons the remainder of the batch rather
+than retrying into it.
+
 ### `GET /hold/me`, `POST /hold/grants`, `DELETE /hold/grants/{grantId}`, `POST /hold/resume-check`
 
 The graduate's own surface, under `/api/v1/hold`. Authentication is possession
@@ -43,11 +89,23 @@ of the access link the university handed them, presented as an
 written to the server access log.
 
 - `GET /hold/me` → the credential (institution, degree, year, GPA, status) plus
-  every share link ever minted for it. The GPA comes from a real proof: the
-  off-chain index stores no grades.
-- `POST /hold/grants` `{"revealGpa": bool}` → 201 with `grantId` and the
-  `verifyUrl` to hand an employer.
+  every share link ever minted for it, and an additive `attestations` array
+  with the same shape per item plus `kind` and its own `grants`. The top level
+  is unchanged from before attestations existed. Every credential is proven
+  concurrently — the GPA comes from a real proof, since the off-chain index
+  stores no grades.
+
+  An attestation with no grade reads `gpa: null`. The chain stores it as
+  `gpaTimes100: 0` because the field is not nullable there, but for a course
+  that means "no grade recorded", not "scored zero". The **degree** keeps the
+  strict reading: a 0.00 GPA there is real data.
+- `POST /hold/grants` `{"revealGpa": bool, "credentialId": "…"}` → 201 with
+  `grantId` and the `verifyUrl` to hand an employer. `credentialId` is optional
+  and defaults to the degree; it must name a credential **this link opens**, or
+  the response is the same 404 as a bad token — a valid token must not become
+  an oracle for which credential ids exist.
 - `DELETE /hold/grants/{grantId}` → 200. One-way; the link stops disclosing.
+  Resolves across the bundle, so an attestation's grant revokes the same way.
 - `POST /hold/resume-check` `{"resumeText": str}` → each education claim
   labelled `proven` / `unproven` / `contradicted` against the proven
   credential. `503 AI_UNAVAILABLE` if extraction is unavailable — no partial

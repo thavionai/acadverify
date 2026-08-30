@@ -4,8 +4,13 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { issueCredential } from "@/lib/api";
 import { useWalletContext } from "@/lib/wallet-context";
-import { ON_CHAIN_HASHED_FIELDS } from "@/lib/types";
-import type { IssueCredentialInput, IssuedCredential } from "@/lib/types";
+import { ATTESTATION_KIND_LABELS, ON_CHAIN_HASHED_FIELDS } from "@/lib/types";
+import type {
+  AttestationInput,
+  AttestationKind,
+  IssueCredentialInput,
+  IssuedCredential,
+} from "@/lib/types";
 import { CopyButton } from "@/components/ui/copy-button";
 import { IconAward, IconLock, IconGlobe } from "@/components/icons";
 
@@ -21,8 +26,16 @@ const EMPTY_INPUT: IssueCredentialInput = {
   studentEmail: "",
 };
 
+// Only the plain-text fields. `attestations` is a repeater with its own state
+// and its own row UI, so it must not be reachable from this flat map.
+type TextFieldKey = {
+  [K in keyof IssueCredentialInput]-?: NonNullable<IssueCredentialInput[K]> extends string
+    ? K
+    : never;
+}[keyof IssueCredentialInput];
+
 const FIELD_CONFIG: Array<{
-  key: keyof IssueCredentialInput;
+  key: TextFieldKey;
   label: string;
   type: "text" | "date";
   required: boolean;
@@ -64,6 +77,9 @@ type FormState =
 export function IssueCredentialForm() {
   const { wallet, institution } = useWalletContext();
   const [input, setInput] = useState<IssueCredentialInput>(EMPTY_INPUT);
+  // Separate state, not another FIELD_CONFIG entry: that map is flat strings
+  // and this is a variable-length list of four-field rows.
+  const [attestations, setAttestations] = useState<AttestationInput[]>([]);
   const [formState, setFormState] = useState<FormState>({ phase: "editing" });
   const abortRef = useRef<AbortController | null>(null);
 
@@ -93,7 +109,14 @@ export function IssueCredentialForm() {
 
   function resetForm() {
     setInput(EMPTY_INPUT);
+    setAttestations([]);
     setFormState({ phase: "editing" });
+  }
+
+  function updateAttestation(index: number, patch: Partial<AttestationInput>) {
+    setAttestations((rows) =>
+      rows.map((row, n) => (n === index ? { ...row, ...patch } : row)),
+    );
   }
 
   function cancelSubmit() {
@@ -109,9 +132,13 @@ export function IssueCredentialForm() {
     abortRef.current = controller;
     setFormState({ phase: "submitting", elapsedMs: 0 });
 
-    const result = await issueCredential(input, wallet, {
-      signal: controller.signal,
-    }).catch((error) => {
+    const result = await issueCredential(
+      // Empty rows are how an unused repeater slot looks, not an error — the
+      // backend drops them too, but there is no reason to send them.
+      { ...input, attestations: attestations.filter((a) => a.title.trim()) },
+      wallet,
+      { signal: controller.signal },
+    ).catch((error) => {
       if (error instanceof DOMException && error.name === "AbortError") {
         return null;
       }
@@ -211,6 +238,116 @@ export function IssueCredentialForm() {
               </div>
             );
           })}
+        </div>
+
+        {/* Everything else this university is attesting. Each row becomes its
+            own on-chain credential sharing the student's one access link, so
+            the graduate can prove a single course to a single employer without
+            handing over the rest of the transcript. */}
+        <div className="mt-6 border-t border-paper/10 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-medium text-paper">
+                Also attest (Optional)
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-paper-muted">
+                Courses, honors, activities. Each is issued as its own
+                credential the graduate can share separately from the degree.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={isSubmitting || attestations.length >= 10}
+              onClick={() =>
+                setAttestations((rows) => [
+                  ...rows,
+                  { kind: "course", title: "", grade: "", year: "" },
+                ])
+              }
+              className="rounded-md border border-paper/20 px-3 py-2 text-sm font-medium text-paper transition hover:border-gold-500 hover:text-gold-500 disabled:opacity-50"
+            >
+              Add attestation
+            </button>
+          </div>
+
+          {attestations.length > 0 && (
+            <ul className="mt-4 flex flex-col gap-3">
+              {attestations.map((row, index) => (
+                <li
+                  key={index}
+                  className="grid gap-3 rounded-md border border-paper/10 bg-ink-800/50 p-3 sm:grid-cols-[9rem_1fr_5rem_5rem_auto]"
+                >
+                  <select
+                    aria-label={`Attestation ${index + 1} type`}
+                    value={row.kind}
+                    disabled={isSubmitting}
+                    onChange={(event) =>
+                      updateAttestation(index, {
+                        kind: event.target.value as AttestationKind,
+                      })
+                    }
+                    className="min-h-11 rounded-md border border-paper/20 bg-ink-800 px-2 text-sm text-paper outline-none focus:border-gold-500"
+                  >
+                    {Object.entries(ATTESTATION_KIND_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    aria-label={`Attestation ${index + 1} title`}
+                    value={row.title}
+                    disabled={isSubmitting}
+                    onChange={(event) =>
+                      updateAttestation(index, { title: event.target.value })
+                    }
+                    placeholder="Distributed Systems"
+                    className="min-h-11 rounded-md border border-paper/20 bg-ink-800 px-3 text-sm text-paper outline-none placeholder:text-paper-muted focus:border-gold-500"
+                  />
+                  <input
+                    aria-label={`Attestation ${index + 1} grade`}
+                    value={row.grade}
+                    disabled={isSubmitting}
+                    onChange={(event) =>
+                      updateAttestation(index, { grade: event.target.value })
+                    }
+                    placeholder="3.8"
+                    inputMode="decimal"
+                    className="min-h-11 rounded-md border border-paper/20 bg-ink-800 px-3 text-sm text-paper outline-none placeholder:text-paper-muted focus:border-gold-500"
+                  />
+                  <input
+                    aria-label={`Attestation ${index + 1} year`}
+                    value={row.year}
+                    disabled={isSubmitting}
+                    onChange={(event) =>
+                      updateAttestation(index, { year: event.target.value })
+                    }
+                    placeholder="2025"
+                    inputMode="decimal"
+                    className="min-h-11 rounded-md border border-paper/20 bg-ink-800 px-3 text-sm text-paper outline-none placeholder:text-paper-muted focus:border-gold-500"
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Remove attestation ${index + 1}`}
+                    disabled={isSubmitting}
+                    onClick={() =>
+                      setAttestations((rows) => rows.filter((_, n) => n !== index))
+                    }
+                    className="min-h-11 rounded-md px-3 text-sm text-paper-muted transition hover:text-danger-400 disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {attestations.length > 0 && (
+            <p className="mt-3 text-xs leading-relaxed text-paper-muted">
+              A grade the ledger cannot store as a number — a letter grade, or
+              nothing at all — is simply left off. The attestation is still
+              issued, and the grade can be written into the title instead.
+            </p>
+          )}
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-paper/10 pt-4 text-xs text-paper-muted">
@@ -429,6 +566,44 @@ function IssueSuccess({
           The email could not be sent. Copy the link above and give it to the
           graduate yourself — this is the only copy.
         </p>
+      )}
+
+      {/* Per-item, because one attestation can be rejected while the rest
+          succeed. A failure here is not fatal — the degree is issued and its
+          link is above — but it must not be quiet either. */}
+      {credential.attestations && credential.attestations.length > 0 && (
+        <>
+          <p className="mt-6 text-xs font-semibold uppercase tracking-[0.14em] text-paper-muted">
+            Also attested
+          </p>
+          <ul className="mt-2 flex flex-col gap-2">
+            {credential.attestations.map((attestation) => (
+              <li
+                key={attestation.id || attestation.title}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-paper/10 p-3"
+              >
+                <span className="text-sm text-paper">
+                  <span className="text-paper-muted">
+                    {ATTESTATION_KIND_LABELS[attestation.kind]}
+                  </span>{" "}
+                  {attestation.title}
+                </span>
+                {attestation.ok ? (
+                  <span className="flex items-center gap-3">
+                    <span className="text-sm text-gold-500">
+                      Recorded on-chain
+                    </span>
+                    <CopyButton text={attestation.verifyUrl} label="Copy Link" />
+                  </span>
+                ) : (
+                  <span className="text-sm font-semibold text-danger-400">
+                    Not issued — submit this one again
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       <div className="mt-5 flex flex-wrap gap-3">
