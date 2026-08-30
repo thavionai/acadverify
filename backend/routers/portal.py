@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -30,7 +30,8 @@ from core.config import get_settings
 from core.security import require_issuer_address
 from models.schemas import CredentialIndexItem, CredentialStatus
 from services import chain_service_client, dynamo_client, s3_client
-from services.qr_generator import generate_qr_for_credential
+from services.certificate import render_certificate_pdf
+from services.qr_generator import build_verify_url, generate_qr_for_credential
 
 logger = logging.getLogger(__name__)
 verification_logger = logging.getLogger("verification")
@@ -380,7 +381,25 @@ async def list_credentials(
 
 @router.get("/credentials/{credential_id}/certificate")
 async def download_certificate(credential_id: str, issuer: str = Depends(require_issuer_address)):
-    return _api_error(501, "UNKNOWN_ERROR", "Certificate export is not available in the local demo build.")
+    index_entry = await dynamo_client.get_credential_index(credential_id)
+    # Scoped to the issuing institution, and a credential belonging to another
+    # issuer reads as simply absent — the same response as one that never
+    # existed, so this cannot be used to enumerate other universities' ids.
+    if index_entry is None or index_entry.issuer_address != issuer:
+        return _not_found(credential_id)
+
+    pdf = render_certificate_pdf(
+        credential_id=credential_id,
+        degree=index_entry.credential_type or "",
+        institution=index_entry.university_id or "",
+        graduation_year=index_entry.graduation_year,
+        verify_url=build_verify_url(credential_id),
+    )
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{credential_id}-certificate.pdf"'},
+    )
 
 
 # ---------------------------------------------------------------------------
