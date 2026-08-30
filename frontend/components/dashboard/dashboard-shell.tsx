@@ -29,8 +29,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const { walletState, connect, disconnect } = useWalletContext();
 
   return (
-    <div className="flex min-h-screen flex-1 bg-ink-950">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-paper/10 px-5 py-6">
+    <div className="flex min-h-screen flex-1 flex-col bg-ink-950 lg:flex-row">
+      <aside className="flex shrink-0 flex-col border-b border-paper/10 px-5 py-4 lg:w-64 lg:border-b-0 lg:border-r lg:py-6">
         <div>
           <Link href="/" className="text-lg font-semibold tracking-tight text-paper">
             AcadVerify
@@ -38,7 +38,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <p className="mt-0.5 text-xs text-paper-muted">Academic Registry</p>
         </div>
 
-        <nav aria-label="Dashboard" className="mt-8 flex-1 space-y-1">
+        {/* Horizontal and scrollable on small screens, vertical from lg. */}
+        <nav
+          aria-label="Dashboard"
+          className="mt-4 flex flex-1 gap-1 overflow-x-auto lg:mt-8 lg:flex-col lg:space-y-1 lg:overflow-visible"
+        >
           {NAV_ITEMS.map((item) => {
             const isActive = item.exact
               ? pathname === item.href
@@ -49,7 +53,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                 key={item.href}
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${
+                className={`flex shrink-0 items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition ${
                   isActive
                     ? "border-l-2 border-gold-500 bg-ink-800 text-paper"
                     : "border-l-2 border-transparent text-paper-dim hover:bg-ink-850 hover:text-paper"
@@ -62,7 +66,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="space-y-3 border-t border-paper/10 pt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-paper/10 pt-4 lg:mt-0 lg:block lg:space-y-3">
           <Link
             href="/dashboard/issue"
             className="flex min-h-11 items-center justify-center gap-2 rounded-md bg-gold-500 px-4 text-sm font-semibold text-ink-950 transition hover:bg-gold-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500"
@@ -87,11 +91,11 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex-1">
-        <header className="flex items-center justify-end border-b border-paper/10 px-6 py-4">
+      <div className="min-w-0 flex-1">
+        <header className="flex items-center justify-end border-b border-paper/10 px-5 py-4 sm:px-6">
           <WalletConnectButton state={walletState} onConnect={connect} onDisconnect={disconnect} />
         </header>
-        <main className="px-6 py-8 sm:px-8">
+        <main className="px-5 py-8 sm:px-6 lg:px-8">
           <InstitutionStatusBanner />
           {children}
         </main>

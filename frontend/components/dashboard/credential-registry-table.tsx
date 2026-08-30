@@ -157,8 +157,20 @@ export function CredentialRegistryTable() {
           <p className="p-6 text-sm text-paper-dim">No credentials match your search.</p>
         ) : null}
 
+        {/* The table wrapper carries `contain-paint` as well as
+            `overflow-x-auto`. It already scrolled correctly in isolation
+            (offsetWidth 348, scrollWidth 720) and no descendant escaped the
+            viewport, yet the whole PAGE still panned 214px sideways on a 390px
+            screen — in the production build too, so not a dev-overlay
+            artifact. Chrome was propagating this scroll container's overflow
+            up to the document's scroll extent. Paint containment stops that,
+            and it is a truthful description of the box: nothing inside it
+            should affect layout outside it. Verified empirically against
+            max-width, width, overflow-x:clip and flow-root, none of which
+            helped. The revoke modal is a SIBLING of this div, not a
+            descendant, so its position:fixed is unaffected. */}
         {loadState.status === "loaded" && loadState.items.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="contain-paint overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-paper/10 text-xs font-semibold uppercase tracking-[0.08em] text-paper-muted">
                 <tr>

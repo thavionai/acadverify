@@ -59,7 +59,7 @@ export function SetupWizard() {
 
   return (
     <div id="setup" className="mx-auto max-w-xl scroll-mt-24 rounded-lg border border-paper/10 bg-ink-900 p-6 sm:p-8">
-      <ol className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-paper-muted">
+      <ol className="flex flex-wrap items-center gap-y-2 gap-x-2 text-xs font-semibold uppercase tracking-[0.1em] text-paper-muted">
         {STEPS.map((label, index) => (
           <li key={label} className="flex items-center gap-2">
             <span
