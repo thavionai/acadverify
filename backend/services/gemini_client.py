@@ -76,7 +76,14 @@ async def extract_resume_claims(resume_text: str) -> list[dict]:
     if not api_key:
         raise GeminiUnavailableError("GEMINI_API_KEY is not configured")
 
-    url = _ENDPOINT.format(model=settings.gemini_model)
+    # Models to try, in order. A single model is a single point of failure:
+    # gemini-3.6-flash answers in ~6s when free but returns 503 "experiencing
+    # high demand" under load, and a demo should not hinge on one model's
+    # queue. Each is tried once before falling through to the next.
+    models = [settings.gemini_model] + [
+        m.strip() for m in (settings.gemini_fallback_models or "").split(",") if m.strip()
+    ]
+
     body = {
         "contents": [{"parts": [{"text": f"{_PROMPT}\n\nRESUME TEXT:\n{resume_text}"}]}],
         "generationConfig": {
@@ -87,18 +94,37 @@ async def extract_resume_claims(resume_text: str) -> list[dict]:
         },
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=settings.gemini_timeout_seconds) as client:
-            response = await client.post(
-                url,
-                json=body,
-                headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
-            )
-    except httpx.HTTPError as exc:
-        raise GeminiUnavailableError(f"request failed: {exc}") from exc
+    # Only timeouts and upstream 5xx move on to the next model. A 4xx is a real
+    # problem with the request itself, and retrying it elsewhere would just
+    # produce the same rejection more slowly.
+    response = None
+    last_error = "unknown"
+
+    async with httpx.AsyncClient(timeout=settings.gemini_timeout_seconds) as client:
+        for model in models:
+            try:
+                candidate = await client.post(
+                    _ENDPOINT.format(model=model),
+                    json=body,
+                    headers={"x-goog-api-key": api_key, "Content-Type": "application/json"},
+                )
+            except httpx.HTTPError as exc:
+                last_error = f"{model}: {type(exc).__name__}"
+                continue
+
+            if candidate.status_code >= 500:
+                # Status only — the body can echo the prompt, and the prompt is
+                # a resume.
+                last_error = f"{model}: gemini returned {candidate.status_code}"
+                continue
+
+            response = candidate
+            break
+
+    if response is None:
+        raise GeminiUnavailableError(last_error)
 
     if response.status_code >= 400:
-        # Status only — the body can echo the prompt, and the prompt is a resume.
         raise GeminiUnavailableError(f"gemini returned {response.status_code}")
 
     try:
