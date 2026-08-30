@@ -386,10 +386,30 @@ function IssueSuccess({
         ) : null}
       </dl>
 
-      <div className="mt-4 flex flex-col gap-2 rounded-md border border-paper/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="mt-6 text-xs font-semibold uppercase tracking-[0.14em] text-paper-muted">
+        Public verification link
+      </p>
+      <div className="mt-2 flex flex-col gap-2 rounded-md border border-paper/10 p-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="break-all font-mono text-sm text-paper">{credential.verifyUrl}</p>
         <CopyButton text={credential.verifyUrl} label="Copy Link" />
       </div>
+
+      {/* The graduate's own link. Deliberately separated from the public one
+          above and marked with the danger colour: handing this to the wrong
+          person gives them the GPA and the ability to mint share links. The
+          server keeps only a hash, so it genuinely cannot be reissued. */}
+      <p className="mt-6 text-xs font-semibold uppercase tracking-[0.14em] text-gold-500">
+        Student access link
+      </p>
+      <div className="mt-2 flex flex-col gap-2 rounded-md border border-gold-500/40 bg-gold-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="break-all font-mono text-sm text-paper">{credential.holdUrl}</p>
+        <CopyButton text={credential.holdUrl} label="Copy Student Link" />
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-danger-400">
+        Give this to the graduate and no one else. It lets them see their own
+        GPA and choose what each employer is shown. It is shown once — nothing
+        on the server can produce it again.
+      </p>
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button
