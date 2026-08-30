@@ -351,12 +351,17 @@ export async function getHolderPortal(
 export async function createShareGrant(
   token: string,
   revealGpa: boolean,
-  options: { signal?: AbortSignal } = {},
+  // Which credential in the bundle to share. Omitted means the degree, which
+  // is what a caller written before attestations existed always wanted.
+  options: { credentialId?: string; signal?: AbortSignal } = {},
 ): Promise<ApiResult<ShareGrant>> {
   return request<ShareGrant>(`${API_BASE_URL}/hold/grants`, {
     method: "POST",
     headers: holderHeaders(token),
-    body: JSON.stringify({ revealGpa }),
+    body: JSON.stringify({
+      revealGpa,
+      ...(options.credentialId ? { credentialId: options.credentialId } : {}),
+    }),
     signal: options.signal,
   });
 }

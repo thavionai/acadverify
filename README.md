@@ -210,6 +210,15 @@ Full table with dates: [docs/midnight-integration.md §5](docs/midnight-integrat
   the same posture as the institution profile store.
 - The wallet is a **login only**: it is never asked to sign, and chain-service
   holds the derived issuer keys custodially.
+- A share link minted with `revealGpa` on a **gradeless attestation** shows
+  `0.00` on the public page. The holder page hides that button and reads the
+  value as absent, but the chain has no "no grade" bit to distinguish the two.
+- Attestations are issued **sequentially** — roughly 22 s each in live mode,
+  hence the cap of 10. Revoking a degree does **not** revoke its attestations;
+  the courses were still taken.
+- The résumé checker compares against the **degree only**, not attestations.
+- The student's email is used once and discarded, so there is **no resend**.
+  A lost access link means reissuing the credential.
 
 **Next step:** deploy to `preview` and publish the contract address.
 
