@@ -1,9 +1,9 @@
 {
   "networkId": "undeployed",
-  "contractAddress": "5111b02cd7fffc2aeb2d1d76e18a236c1f8ece4b1616fc18b66dd7d200b1ca66",
-  "deployTxId": "0081ad3e83664937c13d76fef91422c34ad4d95d3d4b9cccf807feb34a66065e3f",
-  "blockHeight": 14,
+  "contractAddress": "8cdc4ff23fbeebd92875a847062818ec0bbe3f5f600c7e2cc830592110b4783a",
+  "deployTxId": "00a2f41395b8738395af9d3643f0ba77f1a9de58fb44ae89178ee6faaeb6ca901f",
+  "blockHeight": 17778,
   "platformOwnerPk": "94141144185ca6f2251cf4aa9dc85f19c1b7e1f7a56c9f3f4a4c8dad5a73feae",
   "demoIssuerPk": "5d2dec7260dbf797514666c471967b2407f18cff958b39974e0085f1e0e52710",
-  "deployedAt": "2026-08-29T04:03:26.814Z"
+  "deployedAt": "2026-08-30T11:19:44.987Z"
 }
