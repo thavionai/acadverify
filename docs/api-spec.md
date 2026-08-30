@@ -74,6 +74,14 @@ The 201 gains two keys:
 
 `emailSent` has three states: `null` (no address given), `true`, and `false`
 (an address was given and the send failed — `holdUrl` is then the only copy).
+
+The message is multipart: a plain-text version carrying the same link and the
+same warnings, and an HTML version with the branded banner **embedded as a
+`cid:` part**. It is embedded rather than linked because Gmail fetches remote
+images through its own proxy, which cannot reach a machine running the demo
+locally — a broken image frame would be worse than none. Successful
+attestations are listed by name; failed ones are not, since naming one would
+tell the graduate they hold something they do not.
 Failure is never fatal: the credential is already on-chain and the token is
 unreconstructable, so an unroutable address must not cost the response.
 

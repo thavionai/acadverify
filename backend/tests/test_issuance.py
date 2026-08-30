@@ -61,9 +61,15 @@ def stack(monkeypatch):
             recorder["row_behaviour"](item)
         recorder["rows"].append(item)
 
-    async def _send(to_email, hold_url, institution, degree):
+    async def _send(to_email, hold_url, institution, degree, attestations=None):
         recorder["email"].append(
-            {"to": to_email, "holdUrl": hold_url, "institution": institution, "degree": degree}
+            {
+                "to": to_email,
+                "holdUrl": hold_url,
+                "institution": institution,
+                "degree": degree,
+                "attestations": attestations,
+            }
         )
         return recorder["emails_sent"]
 
@@ -353,3 +359,27 @@ async def test_a_degree_only_issuance_reports_no_attestations(stack):
 
     assert result["attestations"] == []
     assert len(stack["chain"]) == 1
+
+
+async def test_only_successful_attestations_are_named_in_the_email(stack):
+    """Naming a failed one would tell the graduate they hold what they do not."""
+
+    def behaviour(index, kwargs):
+        if index == 2:
+            raise chain_service_client.ChainServiceRequestError(400, "rejected")
+
+    stack["chain_behaviour"] = behaviour
+
+    await portal.issue_credential_portal(
+        _request(
+            studentEmail="grad@example.edu",
+            attestations=[
+                {"kind": "course", "title": "Issued"},
+                {"kind": "course", "title": "Rejected"},
+            ],
+        ),
+        issuer="mn_issuer",
+    )
+
+    (sent,) = stack["email"]
+    assert sent["attestations"] == ["Issued"]
