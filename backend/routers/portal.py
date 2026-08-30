@@ -200,6 +200,34 @@ async def verify_credential_public(
 # University endpoints (issuer identity via X-Issuer-Address for the MVP)
 # ---------------------------------------------------------------------------
 
+# What a university can attest beyond the degree itself. Each becomes its own
+# on-chain credential rather than a field on the degree: the contract's struct
+# is fixed, and more importantly a course grade should be independently
+# provable and independently shareable from the degree that contains it.
+KIND_LABELS = {
+    "course": "Course",
+    "honor": "Honor",
+    "extracurricular": "Extracurricular",
+    "certification": "Certification",
+    "research": "Research",
+}
+
+# The chain stores gpaTimes100 as a uint16, so anything that would overflow it
+# is treated as "no grade" rather than failing the whole attestation.
+_MAX_GRADE = 655.35
+
+# One issuance is one sequential run of chain calls; ten is already ~4 minutes
+# of proving in live mode.
+_MAX_ATTESTATIONS = 10
+
+
+class AttestationInput(BaseModel):
+    kind: str
+    title: str
+    grade: str = ""
+    year: str = ""
+
+
 class PortalIssueRequest(BaseModel):
     studentName: str
     studentId: str
@@ -214,6 +242,27 @@ class PortalIssueRequest(BaseModel):
     # surface as emailSent=false, never as a failed issuance, because the
     # credential is already on-chain by the time the mailer runs.
     studentEmail: str = ""
+    attestations: list[AttestationInput] = []
+
+
+def _parse_grade(raw: str) -> float | None:
+    """
+    A grade the chain cannot hold is absent, not an error.
+
+    Letter grades ("A") and out-of-range numbers would otherwise 400 the chain
+    call and lose an attestation that is perfectly fine without a numeric
+    grade -- the grade can still be read in the title.
+    """
+    text = raw.strip()
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    if value < 0 or value > _MAX_GRADE:
+        return None
+    return value
 
 
 @router.post("/credentials", status_code=201)
@@ -232,6 +281,29 @@ async def issue_credential_portal(
         gpa = float(payload.gpa) if payload.gpa.strip() else None
     except ValueError:
         return _api_error(400, "VALIDATION_ERROR", "GPA must be a number.")
+
+    # Validated here, before the degree reaches the chain: a rejected request
+    # must leave nothing behind, and once the degree is issued it cannot be
+    # taken back. Blank rows are the form's empty repeater slots, not errors.
+    #
+    # Hand-rolled rather than a pydantic Literal because no
+    # RequestValidationError handler is registered -- a model-level failure
+    # would emit a bare 422 that the frontend maps to UNKNOWN_ERROR, losing
+    # the message that says what was actually wrong.
+    attestations = [a for a in payload.attestations if a.title.strip()]
+    if len(attestations) > _MAX_ATTESTATIONS:
+        return _api_error(
+            400,
+            "VALIDATION_ERROR",
+            f"At most {_MAX_ATTESTATIONS} attestations can be issued at once.",
+        )
+    unknown = sorted({a.kind for a in attestations if a.kind not in KIND_LABELS})
+    if unknown:
+        return _api_error(
+            400,
+            "VALIDATION_ERROR",
+            f"Unknown attestation kind: {', '.join(unknown)}.",
+        )
 
     witness = {
         "student_name": payload.studentName,
@@ -314,6 +386,110 @@ async def issue_credential_portal(
         logger.exception("Index write failed after issuance for %s", credential_id)
         return _api_error(500, "UNKNOWN_ERROR", "Credential was issued on-chain but the index write failed. Reference: " + credential_id)
 
+    # --- the rest of what this university is attesting ---------------------
+    #
+    # The degree row is written FIRST and deliberately: /hold/me identifies the
+    # primary credential as the one row with no attestation_kind, so a bundle
+    # must never exist without it.
+    #
+    # Sequential, unlike /hold/me's gathered proving. Every transaction is
+    # submitted by the one chain-service wallet, and issuing in parallel risks
+    # contention over its coins. The cost is real -- roughly 22s per
+    # attestation in live mode -- and is why the count is capped.
+    attestation_results: list[dict] = []
+    chain_is_down = False
+
+    for item in attestations:
+        title = item.title.strip()
+        label = f"{KIND_LABELS[item.kind]} · {title}"
+        result = {
+            "id": "",
+            "kind": item.kind,
+            "title": title,
+            "txId": "",
+            "verifyUrl": "",
+            "ok": False,
+        }
+
+        if chain_is_down:
+            # Every further attempt would burn the full chain timeout for a
+            # call that cannot succeed. Report the rest as failed instead.
+            attestation_results.append(result)
+            continue
+
+        att_id = str(uuid.uuid4())
+        att_now = datetime.now(timezone.utc)
+        att_witness = {
+            "student_name": payload.studentName,
+            "student_id": payload.studentId,
+            "degree_name": title,
+            "graduation_date": item.year.strip() or payload.graduationDate,
+            "gpa": _parse_grade(item.grade),
+            "honors": None,
+            # Its own salt. Reusing the degree's would make the commitments
+            # linkable, which is the one thing the blinding is for.
+            "salt": secrets.token_hex(32),
+        }
+
+        try:
+            # No re-authorisation wrapper here: the degree above already
+            # proved this issuer is authorised on-chain.
+            att_chain = await chain_service_client.issue_credential(
+                credential_id=att_id,
+                university_id=payload.institution,
+                credential_type=label,
+                witness=att_witness,
+                issuer_identity=issuer,
+            )
+        except chain_service_client.ChainServiceUnavailableError:
+            logger.warning("chain unavailable; abandoning remaining attestations")
+            chain_is_down = True
+            attestation_results.append(result)
+            continue
+        except Exception:
+            # This attestation was rejected; the others are unaffected.
+            logger.exception("attestation failed to issue: %s", label)
+            attestation_results.append(result)
+            continue
+
+        att_year = (item.year.strip() or payload.graduationDate)[:4]
+        try:
+            await dynamo_client.put_credential_index(
+                CredentialIndexItem(
+                    credential_id=att_id,
+                    issuer_address=issuer,
+                    # The same token: one access link opens the whole set.
+                    holder_token_hash=index_item.holder_token_hash,
+                    university_id=payload.institution,
+                    status=CredentialStatus.ISSUED,
+                    created_at=att_now,
+                    updated_at=att_now,
+                    # No QR is stored: the certificate renderer regenerates one
+                    # from the verify URL, and nothing else reads the stored PNG.
+                    qr_code_s3_key=None,
+                    qr_code_public_url=None,
+                    chain_proof_ref=att_chain.get("chain_proof_ref"),
+                    credential_type=label,
+                    graduation_year=int(att_year) if att_year.isdigit() else None,
+                    attestation_kind=item.kind,
+                )
+            )
+        except dynamo_client.DynamoClientError:
+            # The on-chain commitment is orphaned, which is harmless -- it is
+            # digests only, and nothing can look it up. Never a 500: the degree
+            # succeeded and its link must still be returned.
+            logger.exception("attestation index write failed: %s", label)
+            attestation_results.append(result)
+            continue
+
+        result.update(
+            id=att_id,
+            txId=att_chain.get("chain_proof_ref") or "",
+            verifyUrl=build_verify_url(att_id),
+            ok=True,
+        )
+        attestation_results.append(result)
+
     hold_url = f"{get_settings().verify_base_url.rstrip('/')}/hold/{holder_token}"
 
     # Last, and never fatal. None means no address was given; False means one
@@ -338,6 +514,7 @@ async def issue_credential_portal(
         # nothing on the server can produce it again.
         "holdUrl": hold_url,
         "emailSent": email_sent,
+        "attestations": attestation_results,
     }
 
 
