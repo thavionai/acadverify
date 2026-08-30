@@ -207,16 +207,42 @@ async def issue_credential_portal(
         # here, forwarded once, never stored or returned (docs/data-model.md).
         "salt": secrets.token_hex(32),
     }
-    chain_result = await chain_service_client.issue_credential(
-        credential_id=credential_id,
-        university_id=payload.institution,
-        credential_type=payload.degree,
-        witness=witness,
-        # The connected wallet IS the issuer identity. chain-service derives
-        # this institution's own signing key from it, so the credential is
-        # recorded on-chain as issued by this university and no other.
-        issuer_identity=issuer,
-    )
+    async def _issue():
+        return await chain_service_client.issue_credential(
+            credential_id=credential_id,
+            university_id=payload.institution,
+            credential_type=payload.degree,
+            witness=witness,
+            issuer_identity=issuer,
+        )
+
+    try:
+        chain_result = await _issue()
+    except Exception as exc:
+        # The chain can lose an authorisation the registry still records —
+        # a chain-service restart empties the mock adapter's in-memory
+        # `issuers` set, and the stored profile keeps saying AUTHORIZED with a
+        # valid issuerPk, so nothing looked stale. Issuance then failed with
+        # "This issuer key is not authorized on-chain" for an institution that
+        # had genuinely registered.
+        #
+        # The profile store is the record of WHO REGISTERED; on-chain
+        # authorisation is a projection of it. If the projection is missing for
+        # a registered institution, re-assert it and retry once. An institution
+        # with no profile gets no second chance.
+        profile = _institution_profiles.get(issuer)
+        registered = bool(profile and profile.get("status") == "AUTHORIZED")
+        if not registered or "ISSUER_NOT_AUTHORIZED" not in str(exc):
+            raise
+
+        logger.warning(
+            "issuer=%s is registered but not authorized on-chain; re-authorizing", issuer
+        )
+        chain_result = await chain_service_client.authorize_issuer(issuer)
+        profile["issuerPk"] = chain_result.get("issuerPk", profile.get("issuerPk", ""))
+        profile["authorizationTxId"] = chain_result.get("txId", "")
+        _save_profiles(_institution_profiles)
+        chain_result = await _issue()
 
     verify_url, qr_png = generate_qr_for_credential(credential_id)
     try:
