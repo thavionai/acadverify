@@ -76,7 +76,7 @@ try {
   };
   const credentialId = `ACAD-SALT-${Date.now().toString().slice(-8)}`;
 
-  const issueResult = await adapter.issue(credentialId, fields);
+  const issueResult = await adapter.issue(credentialId, "demo-university", fields);
   record("issue() actually wrote a salt (precondition for this check)", capturedSalt !== null);
   if (!capturedSalt) {
     console.log("\nCannot proceed without a captured salt — aborting.\n");

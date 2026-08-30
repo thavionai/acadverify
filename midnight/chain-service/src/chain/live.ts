@@ -31,7 +31,8 @@ import type {
 
 const toWitnessFields = (f: CredentialFields): CredentialDataWitness => ({
   studentId: hexToBytes32(f.studentId, "studentId"),
-  issuerPk: hexToBytes32(f.issuerPk, "issuerPk"),
+  // Always set by the adapter before witnessing; see CredentialFields.
+  issuerPk: hexToBytes32(f.issuerPk ?? "", "issuerPk"),
   institutionId: hexToBytes32(f.institutionId, "institutionId"),
   degreeCode: BigInt(f.degreeCode),
   graduationYear: BigInt(f.graduationYear),
@@ -160,19 +161,53 @@ class LiveChainAdapter implements ChainAdapter {
     };
   }
 
-  async authorizeIssuer(issuerPk: string): Promise<{ txId: string; blockHeight: number | null }> {
+  /**
+   * This institution's signing key, derived from the service seed and the
+   * institution's own identity.
+   *
+   * Every call site used the literal "demo-university", so every credential on
+   * the ledger was signed by one key no matter which university was logged in
+   * — the contract is multi-tenant, the deployment was not.
+   */
+  private issuerKeys(institutionId: string): { sk: Uint8Array; pkHex: string } {
+    const sk = deriveIssuerSecretKey(
+      this.config.MIDNIGHT_WALLET_SEED ?? GENESIS_SEED,
+      institutionId,
+    );
+    return { sk, pkHex: bytes32ToHex(pureCircuits.publicKey(sk)) };
+  }
+
+  async authorizeIssuer(identity: {
+    institutionId?: string;
+    issuerPk?: string;
+  }): Promise<{ txId: string; blockHeight: number | null; issuerPk: string }> {
     return this.queue.run(async () => {
       await this.setWorkingSet(emptyWorkingSet(this.ownerSk));
-      const pk = hexToBytes32(issuerPk, "issuerPk");
+      const issuerPkHex = identity.institutionId
+        ? this.issuerKeys(identity.institutionId).pkHex
+        : identity.issuerPk!;
+      const pk = hexToBytes32(issuerPkHex, "issuerPk");
+
+      // Idempotent: re-registering an institution must not fail. Authorisation
+      // is a set insert, so an already-present key is a no-op success.
+      const { state } = await this.liveState();
+      if ((ledger(state as never) as any).issuers.member(pk)) {
+        return { txId: "", blockHeight: null, issuerPk: issuerPkHex };
+      }
+
       const res = await submitTx<any>(this.logger, "authorizeIssuer", () =>
         this.contract.callTx.authorizeIssuer(pk),
       );
       const blockHeight = await this.waitForState((l) => l.issuers.member(pk));
-      return { txId: res.public.txId, blockHeight };
+      return { txId: res.public.txId, blockHeight, issuerPk: issuerPkHex };
     });
   }
 
-  async issue(credentialId: string, fields: CredentialFields): Promise<IssueResult> {
+  async issue(
+    credentialId: string,
+    institutionId: string,
+    fields: CredentialFields,
+  ): Promise<IssueResult> {
     return this.queue.run(async () => {
       const idBytes = credentialIdToBytes(credentialId);
       const { state } = await this.liveState();
@@ -182,11 +217,12 @@ class LiveChainAdapter implements ChainAdapter {
 
       // Fresh random blinding factor. Never reused, never returned, never logged.
       const salt = Uint8Array.from(randomBytes(32));
-      const witnessFields = toWitnessFields(fields);
-      const issuerSk = deriveIssuerSecretKey(
-        this.config.MIDNIGHT_WALLET_SEED ?? GENESIS_SEED,
-        "demo-university",
-      );
+      const { sk: issuerSk, pkHex } = this.issuerKeys(institutionId);
+      // issuerPk comes from the key we are about to sign with, never from the
+      // caller. The circuit asserts fields.issuerPk == publicKey(localSecretKey()),
+      // so a supplied value could only agree or be a lie — and the backend was
+      // supplying one global ISSUER_PK for every institution.
+      const witnessFields = toWitnessFields({ ...fields, issuerPk: pkHex });
 
       const ps: AcadPrivateState = { secretKey: issuerSk, fields: witnessFields, salt };
       await this.setWorkingSet(ps);
@@ -225,7 +261,7 @@ class LiveChainAdapter implements ChainAdapter {
     });
   }
 
-  async revoke(credentialId: string): Promise<RevokeResult> {
+  async revoke(credentialId: string, institutionId: string): Promise<RevokeResult> {
     return this.queue.run(async () => {
       const key = credentialId.trim().toUpperCase();
       const idBytes = credentialIdToBytes(credentialId);
@@ -245,10 +281,11 @@ class LiveChainAdapter implements ChainAdapter {
       const entry = await this.vault.get(key);
       if (!entry) throw new AppError("PROOF_MATERIAL_UNAVAILABLE");
 
-      const issuerSk = deriveIssuerSecretKey(
-        this.config.MIDNIGHT_WALLET_SEED ?? GENESIS_SEED,
-        "demo-university",
-      );
+      // revokeCredential asserts fields.issuerPk == publicKey(localSecretKey()),
+      // so this must be the CALLER's key. That assert is what stops one
+      // authorised university revoking another's credentials, and it can only
+      // do its job once each institution has a key of its own.
+      const { sk: issuerSk } = this.issuerKeys(institutionId);
       const ps: AcadPrivateState = { secretKey: issuerSk, fields: entry.fields, salt: entry.salt };
       await this.setWorkingSet(ps);
 
@@ -274,9 +311,13 @@ class LiveChainAdapter implements ChainAdapter {
     // volume would make every real degree on the platform render as forged.
     if (!entry) throw new AppError("PROOF_MATERIAL_UNAVAILABLE");
 
+    // proveCredential never calls localSecretKey() — it checks the commitment,
+    // the revocation set, and that fields.issuerPk is an authorised issuer.
+    // AcadPrivateState still requires the field, so this is a placeholder and
+    // deliberately not tied to any institution: nothing here depends on it.
     const issuerSk = deriveIssuerSecretKey(
       this.config.MIDNIGHT_WALLET_SEED ?? GENESIS_SEED,
-      "demo-university",
+      "unused:prove-has-no-signer",
     );
     const ps: AcadPrivateState = { secretKey: issuerSk, fields: entry.fields, salt: entry.salt };
 

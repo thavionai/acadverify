@@ -16,6 +16,11 @@ class CredentialStatus(str, Enum):
 class CredentialIndexItem(BaseModel):
     credential_id: str
     university_id: str
+    # WHO issued this, i.e. the connected wallet address. The registry is
+    # scoped on it. Optional only because rows written before issuer scoping
+    # existed have no value; those are treated as unowned and hidden rather
+    # than shown to everyone (see list_credentials).
+    issuer_address: str | None = None
     status: CredentialStatus
     created_at: datetime
     updated_at: datetime

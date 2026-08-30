@@ -31,7 +31,18 @@ interface MockRecord {
 }
 
 const MOCK_INSTITUTION = "a3f1".padEnd(64, "0");
-const MOCK_ISSUER_PK = "b2e7".padEnd(64, "0");
+
+/**
+ * Stand-in for live.ts's deriveIssuerSecretKey + pureCircuits.publicKey: each
+ * institution identity maps to its own issuer key, deterministically.
+ *
+ * The mock previously held ONE issuer (`MOCK_ISSUER_PK`) that every credential
+ * shared, which is exactly the shape of the bug in live mode — so the mock
+ * could never have surfaced it.
+ */
+function mockIssuerPk(institutionId: string): string {
+  return createHash("sha256").update(`mock-issuer:${institutionId}`).digest("hex");
+}
 
 function fakeCommitment(seed: string): string {
   return createHash("sha256").update(`mock-commitment:${seed}`).digest("hex");
@@ -44,7 +55,7 @@ function record(id: string, over: Partial<MockRecord> = {}): MockRecord {
   return {
     fields: {
       studentId: createHash("sha256").update(`student:${id}`).digest("hex"),
-      issuerPk: MOCK_ISSUER_PK,
+      issuerPk: mockIssuerPk("seed-institution"),
       institutionId: MOCK_INSTITUTION,
       degreeCode: 4711,
       graduationYear: 2026,
@@ -74,7 +85,8 @@ function seed(): Map<string, MockRecord> {
 export class MockChainAdapter implements ChainAdapter {
   readonly mode = "mock" as const;
   private readonly store = seed();
-  private readonly issuers = new Set<string>([MOCK_ISSUER_PK]);
+  // Institutions authorised so far, by the pk derived from their identity.
+  private readonly issuers = new Set<string>([mockIssuerPk("seed-institution")]);
 
   constructor(private readonly networkId: string) {}
 
@@ -100,20 +112,37 @@ export class MockChainAdapter implements ChainAdapter {
     };
   }
 
-  async authorizeIssuer(issuerPk: string): Promise<{ txId: string; blockHeight: number | null }> {
+  async authorizeIssuer(identity: {
+    institutionId?: string;
+    issuerPk?: string;
+  }): Promise<{ txId: string; blockHeight: number | null; issuerPk: string }> {
+    const issuerPk = identity.institutionId
+      ? mockIssuerPk(identity.institutionId)
+      : identity.issuerPk!;
     this.issuers.add(issuerPk);
-    return { txId: fakeTxId(`authorize:${issuerPk}`), blockHeight: 900 };
+    return { txId: fakeTxId(`authorize:${issuerPk}`), blockHeight: 900, issuerPk };
   }
 
-  async issue(credentialId: string, fields: CredentialFields): Promise<IssueResult> {
+  async issue(
+    credentialId: string,
+    institutionId: string,
+    fields: CredentialFields,
+  ): Promise<IssueResult> {
     const key = this.key(credentialId);
     if (this.store.has(key)) {
       throw new AppError("DUPLICATE_CREDENTIAL", `Credential ${credentialId} already exists.`);
     }
-    if (!this.issuers.has(fields.issuerPk)) {
+    // Mirrors the circuit's two asserts: the signer must be authorised, and
+    // the record must name the signer as its issuer. Deriving issuerPk here
+    // (rather than trusting the caller) is what makes the second one hold.
+    const issuerPk = mockIssuerPk(institutionId);
+    if (!this.issuers.has(issuerPk)) {
       throw new AppError("ISSUER_NOT_AUTHORIZED", "This issuer key is not authorized on-chain.");
     }
-    const rec = record(key, { fields, commitment: fakeCommitment(key + randomUUID()) });
+    const rec = record(key, {
+      fields: { ...fields, issuerPk },
+      commitment: fakeCommitment(key + randomUUID()),
+    });
     this.store.set(key, rec);
     return {
       credentialId,
@@ -127,8 +156,17 @@ export class MockChainAdapter implements ChainAdapter {
     };
   }
 
-  async revoke(credentialId: string): Promise<RevokeResult> {
+  async revoke(credentialId: string, institutionId: string): Promise<RevokeResult> {
     const rec = this.get(credentialId);
+    // The circuit binds revocation to the credential's ACTUAL issuer. Without
+    // this check the mock would happily let one university revoke another's
+    // credentials — the cross-tenant hole the contract closes.
+    if (rec.fields.issuerPk !== mockIssuerPk(institutionId)) {
+      throw new AppError(
+        "ISSUER_NOT_AUTHORIZED",
+        "Only the institution that issued this credential can revoke it.",
+      );
+    }
     if (rec.revoked) {
       throw new AppError("CREDENTIAL_ALREADY_REVOKED", "This credential was already revoked.");
     }

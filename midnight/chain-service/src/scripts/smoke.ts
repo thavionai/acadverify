@@ -46,7 +46,7 @@ try {
   check("health: all three Midnight services reachable", health.ok,
     `node=${health.services.node.ok} indexer=${health.services.indexer.ok} proof=${health.services.proofServer.ok}`);
 
-  const issued = await adapter.issue(GOOD, fields(390));
+  const issued = await adapter.issue(GOOD, "demo-university", fields(390));
   check("issue: commitment written on-chain", !!issued.commitment,
     `tx=${issued.txId.slice(0, 12)}… proving=${issued.provingMs}ms`);
 
@@ -70,14 +70,14 @@ try {
   check("student identity withheld under BOTH disclosures",
     minimal.withheld.includes("studentId") && full.withheld.includes("studentId"));
 
-  await adapter.issue(FORGED, fields(400));
+  await adapter.issue(FORGED, "demo-university", fields(400));
   await adapter.tamper!(FORGED);
   const forged = await adapter.prove(FORGED, []);
   check("forgery: tampered credential cannot be proven",
     forged.status === "INVALID_PROOF" && forged.disclosed === null,
     `status=${forged.status}`);
 
-  const rev = await adapter.revoke(GOOD);
+  const rev = await adapter.revoke(GOOD, "demo-university");
   check("revoke: submitted on-chain", !!rev.txId, `tx=${rev.txId.slice(0, 12)}…`);
 
   const afterRevoke = await adapter.prove(GOOD, []);

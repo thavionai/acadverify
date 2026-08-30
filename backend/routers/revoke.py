@@ -38,6 +38,10 @@ def _revoke_response(credential_id: str, status_value: CredentialStatus, revoked
 async def revoke_credential(
     credential_id: str,
     payload: RevokeCredentialRequest | None = None,
+    # Bound as a parameter, not just a route dependency: the circuit binds
+    # revocation to the credential's ACTUAL issuer, so the caller's identity
+    # has to reach chain-service for that assert to mean anything.
+    issuer: str = Depends(require_admin_or_issuer),
 ) -> dict:
     existing = await dynamo_client.get_credential_index(credential_id)
     if existing is None:
@@ -58,7 +62,9 @@ async def revoke_credential(
     # On-chain revocation first — see module docstring. If chain-service
     # is unreachable, ChainServiceUnavailableError propagates to the
     # global Phase 4 handler as a 503, and Dynamo is never touched.
-    chain_result = await chain_service_client.revoke_credential(credential_id, reason=reason)
+    chain_result = await chain_service_client.revoke_credential(
+        credential_id, issuer_identity=issuer, reason=reason
+    )
 
     revoked_at_str = chain_result.get("revoked_at")
     revoked_at = (
