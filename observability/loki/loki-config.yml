@@ -28,6 +28,18 @@ schema_config:
 limits_config:
   retention_period: 72h
   max_query_series: 5000
+  # The Midnight proof server emits single log lines well over 256KB while it
+  # is generating a proof -- a serialised circuit witness on one line. At the
+  # default 256KB limit Loki rejected those with a 400 and promtail dropped
+  # the WHOLE batch, so no logs from any service reached Loki at all. The
+  # symptom is a permanently empty Live Logs dashboard, and it only appears
+  # once the stack runs against real proofs rather than the mock adapter.
+  max_line_size: 2MB
+  max_line_size_truncate: true
+  # Proving bursts also tripped the default 4MB/s ingestion limit, which
+  # returned 429 and stalled the pipeline behind retries.
+  ingestion_rate_mb: 32
+  ingestion_burst_size_mb: 64
 
 compactor:
   working_directory: /loki/compactor
