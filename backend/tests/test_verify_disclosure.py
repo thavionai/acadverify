@@ -22,7 +22,19 @@ import pytest
 
 from routers import portal
 
-CHAIN_DISCLOSABLE = ("institutionId", "degreeCode", "graduationYear", "gpa")
+# Every field the verifier sees under *Disclosed Fields*, not just the ones the
+# circuit produces. `institution` and `degree` are read from the off-chain index
+# rather than the proof, and were originally left out of this tuple — which is
+# exactly why QA3 found them still populated on a REVOKED credential while every
+# chain-derived field beside them was correctly null.
+DISCLOSABLE = (
+    "institution",
+    "institutionId",
+    "degree",
+    "degreeCode",
+    "graduationYear",
+    "gpa",
+)
 
 
 class _StubIndexEntry:
@@ -104,7 +116,7 @@ async def test_every_field_is_disclosed_or_withheld_never_neither(patched, statu
     result = await portal.verify_credential_public("cred-1", _StubRequest(), disclose)
     disclosed, withheld = result["disclosed"], result["withheld"]
 
-    for field in CHAIN_DISCLOSABLE:
+    for field in DISCLOSABLE:
         shown = disclosed.get(field) is not None
         hidden = field in withheld
         assert shown or hidden, f"{field} is in neither disclosed nor withheld ({status}/{disclose})"
@@ -122,6 +134,26 @@ async def test_revoked_with_gpa_consent_still_reports_gpa_withheld(patched):
     assert "gpa" in result["withheld"]
 
 
+@pytest.mark.parametrize("status", ["REVOKED", "INVALID_PROOF"])
+@pytest.mark.parametrize("disclose", ["", "gpa"])
+async def test_failed_proof_discloses_neither_institution_nor_degree(patched, status, disclose):
+    """QA3: the two human-readable fields come from the off-chain index rather
+    than the circuit, and were emitted unconditionally. A REVOKED or
+    INVALID_PROOF credential therefore rendered "Institution: North Valley
+    University / Degree: Master of Artificial Intelligence" under the heading
+    *Disclosed Fields*, directly beside "Invalid proof" — read by a verifier as
+    the proof having vouched for them. A proof that disclosed nothing must
+    disclose nothing at all, whatever the source of the value."""
+    patched(status, reveal_gpa=(disclose == "gpa"))
+
+    result = await portal.verify_credential_public("cred-1", _StubRequest(), disclose)
+
+    assert result["disclosed"]["institution"] is None
+    assert result["disclosed"]["degree"] is None
+    assert "institution" in result["withheld"]
+    assert "degree" in result["withheld"]
+
+
 async def test_valid_proof_still_discloses_real_values(patched):
     """The fix must not over-withhold: a successful proof genuinely discloses."""
     patched("VALID", reveal_gpa=True)
@@ -132,6 +164,9 @@ async def test_valid_proof_still_discloses_real_values(patched):
     assert result["disclosed"]["degreeCode"] == 2047909550
     assert result["disclosed"]["graduationYear"] == 2026
     assert result["disclosed"]["gpa"] == pytest.approx(3.9)
+    # ...including the index-derived pair, which must not be over-withheld.
+    assert result["disclosed"]["institution"] == "North Valley University"
+    assert result["disclosed"]["degree"] == "Master of Artificial Intelligence"
     assert result["withheld"] == ["studentId"]
 
 
