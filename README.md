@@ -204,6 +204,12 @@ Full table with dates: [docs/midnight-integration.md §5](docs/midnight-integrat
   (needs faucet tDUST) — `midnight/deployments/preview.json` does not exist.
 - The detachable ZK proof bundle (`proof.level: "zk-verified"`) was attempted
   and cut for time; see `midnight/chain-service/README.md`.
+- Credentials issued **before student access existed** have no holder token and
+  cannot open `/hold/...`. Issue a fresh one to see the graduate's side.
+- Share grants live in a JSON file with no locking — demo-grade, single-process,
+  the same posture as the institution profile store.
+- The wallet is a **login only**: it is never asked to sign, and chain-service
+  holds the derived issuer keys custodially.
 
 **Next step:** deploy to `preview` and publish the contract address.
 

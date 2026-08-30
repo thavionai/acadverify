@@ -89,7 +89,8 @@ test.describe("live credential lifecycle (real chain)", () => {
     await page.getByRole("button", { name: "Submit & Mint Credential" }).click();
     const issued = await issueResponse;
     expect(issued.status(), "live issuance should succeed").toBe(201);
-    const { id: credentialId, txId } = await issued.json();
+    const { id: credentialId, txId, holdUrl } = await issued.json();
+    expect(holdUrl, "issuance must mint a student access link").toBeTruthy();
     expect(txId, "issuance must land an on-chain tx").toBeTruthy();
 
     await expect(page.getByText("Credential issued")).toBeVisible({ timeout: 30_000 });
@@ -107,12 +108,28 @@ test.describe("live credential lifecycle (real chain)", () => {
     await expect(page.getByText(STUDENT.name)).not.toBeVisible(); // never disclosed
     await expect(page.getByText(STUDENT.gpa)).not.toBeVisible(); // withheld by default
 
-    // --- 4. Consent to disclose GPA: same record, one more field ---
-    await page.getByRole("button", { name: "GPA Disclosed" }).click();
+    // --- 4. A verifier cannot widen the disclosure. The toggle is gone and
+    // the query parameter it used no longer does anything. ---
+    await expect(page.getByRole("button", { name: "GPA Disclosed" })).toHaveCount(0);
+    await page.goto(`/verify/${credentialId}?disclose=gpa`);
+    await expect(page.getByText("Valid credential")).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(STUDENT.gpa)).not.toBeVisible();
+
+    // --- 5. Only the graduate can. From their own access link they mint a
+    // share link including the GPA, and that link discloses it. ---
+    await page.goto(new URL(holdUrl).pathname);
+    await expect(page.getByText("Your credential")).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Share including GPA" }).click();
+
+    const grantLink = page.locator("li", { hasText: "Includes your GPA" }).first();
+    await expect(grantLink).toBeVisible({ timeout: 30_000 });
+    const grantUrl = (await grantLink.locator("p.font-mono").innerText()).trim();
+
+    await page.goto(new URL(grantUrl, "http://localhost:3000").pathname + new URL(grantUrl, "http://localhost:3000").search);
     await expect(page.getByText(STUDENT.gpa)).toBeVisible({ timeout: 60_000 });
     await expect(page.getByText(STUDENT.name)).not.toBeVisible(); // still never
 
-    // --- 5. Revoke from the dashboard (real proof, ~25s). goto() is a full
+    // --- 6. Revoke from the dashboard (real proof, ~25s). goto() is a full
     // reload, which drops the in-memory wallet — reconnect first. ---
     await page.goto("/dashboard/registry");
     await page.getByRole("button", { name: "Connect Wallet" }).click();
@@ -125,7 +142,7 @@ test.describe("live credential lifecycle (real chain)", () => {
     expect((await revokeResponse).status()).toBe(200);
     await expect(row.getByText("Revoked")).toBeVisible({ timeout: 30_000 });
 
-    // --- 6. Re-verify: REVOKED, not INVALID_PROOF and not an error ---
+    // --- 7. Re-verify: REVOKED, not INVALID_PROOF and not an error ---
     await page.goto(`/verify/${credentialId}`);
     await expect(page.getByText("Revoked credential")).toBeVisible({ timeout: 60_000 });
 
