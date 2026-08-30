@@ -1,4 +1,7 @@
 import type {
+  HolderPortalData,
+  ResumeCheckResult,
+  ShareGrant,
   ApiErrorCode,
   ApiErrorPayload,
   ApiResult,
@@ -30,6 +33,10 @@ const USER_FACING_FALLBACKS: Record<ApiErrorCode, string> = {
     "Could not generate a proof. This is our service issue, not a problem with the credential.",
   CHAIN_UNAVAILABLE:
     "The Midnight network services are unavailable. This is our service issue, not a problem with the credential.",
+  GRANT_NOT_FOUND:
+    "This share link is invalid or was revoked by the credential holder.",
+  AI_UNAVAILABLE:
+    "The resume checker is unavailable right now. The credential itself is unaffected.",
   UNKNOWN_ERROR:
     "The request could not be completed. This is a service issue, not a rejection of the credential.",
 };
@@ -38,14 +45,21 @@ const USER_FACING_FALLBACKS: Record<ApiErrorCode, string> = {
 // Public verification
 // ---------------------------------------------------------------------------
 
+/**
+ * Verify a credential.
+ *
+ * `grant` is a share link the HOLDER minted. It is the only way the GPA is
+ * ever disclosed — a verifier can no longer ask for it, because asking was
+ * never consent.
+ */
 export async function verifyCredential(
   credentialId: string,
-  options: { discloseGpa?: boolean; signal?: AbortSignal } = {},
+  options: { grant?: string; signal?: AbortSignal } = {},
 ): Promise<VerifyApiResult> {
   const params = new URLSearchParams();
 
-  if (options.discloseGpa) {
-    params.set("disclose", "gpa");
+  if (options.grant) {
+    params.set("grant", options.grant);
   }
 
   const url = `${API_BASE_URL}/verify/${encodeURIComponent(credentialId)}${
@@ -308,4 +322,65 @@ function codeFromStatus(status: number): ApiErrorCode {
   if (status === 400) return "VALIDATION_ERROR";
 
   return "UNKNOWN_ERROR";
+}
+
+
+// ---------------------------------------------------------------------------
+// Holder portal
+//
+// Authentication here is possession of the access link the university handed
+// the graduate — no account, no password. The token travels in a HEADER rather
+// than the path because request paths land in the server's access log, and an
+// access token in a log file is a credential leak.
+// ---------------------------------------------------------------------------
+
+function holderHeaders(token: string): HeadersInit {
+  return { "Content-Type": "application/json", "X-Holder-Token": token };
+}
+
+export async function getHolderPortal(
+  token: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<ApiResult<HolderPortalData>> {
+  return request<HolderPortalData>(`${API_BASE_URL}/hold/me`, {
+    headers: holderHeaders(token),
+    signal: options.signal,
+  });
+}
+
+export async function createShareGrant(
+  token: string,
+  revealGpa: boolean,
+  options: { signal?: AbortSignal } = {},
+): Promise<ApiResult<ShareGrant>> {
+  return request<ShareGrant>(`${API_BASE_URL}/hold/grants`, {
+    method: "POST",
+    headers: holderHeaders(token),
+    body: JSON.stringify({ revealGpa }),
+    signal: options.signal,
+  });
+}
+
+export async function revokeShareGrant(
+  token: string,
+  grantId: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<ApiResult<{ grantId: string; revoked: boolean }>> {
+  return request<{ grantId: string; revoked: boolean }>(
+    `${API_BASE_URL}/hold/grants/${encodeURIComponent(grantId)}`,
+    { method: "DELETE", headers: holderHeaders(token), signal: options.signal },
+  );
+}
+
+export async function checkResume(
+  token: string,
+  resumeText: string,
+  options: { signal?: AbortSignal } = {},
+): Promise<ApiResult<ResumeCheckResult>> {
+  return request<ResumeCheckResult>(`${API_BASE_URL}/hold/resume-check`, {
+    method: "POST",
+    headers: holderHeaders(token),
+    body: JSON.stringify({ resumeText }),
+    signal: options.signal,
+  });
 }

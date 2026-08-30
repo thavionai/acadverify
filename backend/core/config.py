@@ -34,6 +34,21 @@ class Settings(BaseSettings):
     issuer_pk: str = ""
 
     # --- verification URL construction ---
+    # --- AI resume checker -------------------------------------------------
+    # Optional. With no key the resume endpoint returns an honest 503 rather
+    # than degrading to guesswork, so the feature is safe to leave unconfigured.
+    gemini_api_key: str = ""
+    # gemini-2.5-flash and -flash-lite are closed to new API projects and answer
+    # 404 with "no longer available to new users"; 3.6-flash is the current
+    # replacement Google names in that error. Override with GEMINI_MODEL.
+    gemini_model: str = "gemini-3.6-flash"
+    # Tried in order when the primary is overloaded (503) or times out. All
+    # three were verified to support the structured-output schema this client
+    # sends; 2.5-flash is deliberately absent, being closed to new projects.
+    gemini_fallback_models: str = "gemini-3-flash-preview,gemini-3.1-flash-lite"
+    # Headroom: the model usually answers in ~6s but has been seen to stall.
+    gemini_timeout_seconds: float = 60.0
+
     verify_base_url: str = "https://verify.example.com"
 
     # Comma-separated browser origins allowed to call the API (the Next.js

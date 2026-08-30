@@ -1,6 +1,6 @@
 /**
  * Scaffold for the Definition of Done's critical-path coverage:
- *   issue -> certificate -> scan -> verify -> consent-to-disclose -> revoke -> re-verify
+ *   issue -> student link -> holder grants GPA -> verify -> revoke -> re-verify
  *
  * This repo checkout doesn't include package.json / a Playwright config, so
  * this file isn't wired into a runner yet. Once `@playwright/test` is added
@@ -12,6 +12,8 @@
 import { test, expect } from "@playwright/test";
 
 const CREDENTIAL_ID = "cred_test123";
+const HOLDER_TOKEN = "holder-token-e2e";
+const GRANT_ID = "grant-e2e";
 const ISSUER_ADDRESS = "mn_shield-addr_test1xyz";
 
 const BASE_CREDENTIAL = {
@@ -112,6 +114,8 @@ test.describe("critical credential lifecycle", () => {
             metadataCid: "bafy...",
             txId: "0xtx",
             verifyUrl: `https://acadverify.example/verify/${CREDENTIAL_ID}`,
+            qrCodeUrl: "https://assets.example/qr.png",
+            holdUrl: `https://acadverify.example/hold/${HOLDER_TOKEN}`,
           }),
         });
       }
@@ -122,6 +126,53 @@ test.describe("critical credential lifecycle", () => {
         body: JSON.stringify({
           items: issued ? [{ ...BASE_CREDENTIAL, status: revoked ? "REVOKED" : "ACTIVE" }] : [],
           total: issued ? 1 : 0,
+        }),
+      });
+    });
+
+    // The holder portal: one credential, and grants the student creates.
+    let grantCreated = false;
+    await page.route("**/api/v1/hold/me", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          credential: {
+            id: CREDENTIAL_ID,
+            institution: BASE_CREDENTIAL.institution,
+            degree: BASE_CREDENTIAL.degree,
+            graduationYear: 2026,
+            gpa: 3.85,
+            status: "VALID",
+            issuedAt: "2026-06-15T00:00:00Z",
+            verifyUrl: `https://acadverify.example/verify/${CREDENTIAL_ID}`,
+          },
+          grants: grantCreated
+            ? [
+                {
+                  grantId: GRANT_ID,
+                  revealGpa: true,
+                  createdAt: "2026-06-15T00:00:00Z",
+                  revoked: false,
+                  verifyUrl: `/verify/${CREDENTIAL_ID}?grant=${GRANT_ID}`,
+                },
+              ]
+            : [],
+        }),
+      }),
+    );
+
+    await page.route("**/api/v1/hold/grants", (route) => {
+      grantCreated = true;
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          grantId: GRANT_ID,
+          revealGpa: true,
+          createdAt: "2026-06-15T00:00:00Z",
+          revoked: false,
+          verifyUrl: `/verify/${CREDENTIAL_ID}?grant=${GRANT_ID}`,
         }),
       });
     });
@@ -145,7 +196,9 @@ test.describe("critical credential lifecycle", () => {
 
     await page.route(`**/api/v1/verify/${CREDENTIAL_ID}*`, (route) => {
       const url = new URL(route.request().url());
-      const discloseGpa = url.searchParams.get("disclose") === "gpa";
+      // The GPA is disclosed only when the holder's grant is presented.
+      // `disclose=gpa` must have no effect at all.
+      const discloseGpa = url.searchParams.get("grant") === GRANT_ID;
       const status = revoked ? "REVOKED" : "VALID";
 
       return route.fulfill({
@@ -189,12 +242,22 @@ test.describe("critical credential lifecycle", () => {
     await expect(page.getByText(BASE_CREDENTIAL.studentName)).not.toBeVisible();
     await expect(page.getByText(BASE_CREDENTIAL.studentId)).not.toBeVisible();
 
-    // 5. Consent-to-disclose: toggle GPA on and confirm the same credential
-    // now shows the previously withheld field.
-    await page.getByRole("button", { name: "GPA Disclosed" }).click();
+    // 5. A verifier cannot ask for more. The toggle that used to let anyone
+    // reveal the GPA is gone, and the query parameter it used is now inert.
+    await expect(page.getByRole("button", { name: "GPA Disclosed" })).toHaveCount(0);
+    await page.goto(`/verify/${CREDENTIAL_ID}?disclose=gpa`);
+    await expect(page.getByText("3.85")).toHaveCount(0);
+
+    // 6. Only the graduate can widen it. From their own access link they mint
+    // a share link that includes the GPA, and that link discloses it.
+    await page.goto(`/hold/${HOLDER_TOKEN}`);
+    await page.getByRole("button", { name: "Share including GPA" }).click();
+    await expect(page.getByText(`grant=${GRANT_ID}`)).toBeVisible();
+
+    await page.goto(`/verify/${CREDENTIAL_ID}?grant=${GRANT_ID}`);
     await expect(page.getByText("3.85")).toBeVisible();
 
-    // 6. Revoke from the dashboard. goto() is a full page load, which drops
+    // 7. Revoke from the dashboard. goto() is a full page load, which drops
     // the in-memory wallet connection — reconnect before acting.
     await page.goto("/dashboard/registry");
     await page.getByRole("button", { name: "Connect Wallet" }).click();

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { buildIndexerQuery, verifyCredential } from "@/lib/api";
 import { formatDisclosedValue, formatLabel } from "@/lib/format";
@@ -18,7 +17,9 @@ import {
 
 type VerifyResultProps = {
   credentialId: string;
-  discloseGpa: boolean;
+  /** A share link minted by the credential holder. Absent means minimal
+   *  disclosure — this page has no way to ask for more. */
+  grant?: string;
 };
 
 const STATUS_CONTENT = {
@@ -42,17 +43,12 @@ const STATUS_CONTENT = {
   },
 };
 
-export function VerifyResult({
-  credentialId,
-  discloseGpa,
-}: VerifyResultProps) {
-  const requestKey = `${credentialId}:${discloseGpa ? "gpa" : "withheld"}`;
+export function VerifyResult({ credentialId, grant }: VerifyResultProps) {
+  const requestKey = `${credentialId}:${grant ?? "none"}`;
   const [resultState, setResultState] = useState<{
     requestKey: string;
     result: VerifyApiResult;
   } | null>(null);
-  const router = useRouter();
-  const pathname = usePathname();
   const result =
     resultState?.requestKey === requestKey ? resultState.result : null;
   const isLoading = result === null;
@@ -61,7 +57,7 @@ export function VerifyResult({
     const controller = new AbortController();
 
     verifyCredential(credentialId, {
-      discloseGpa,
+      grant,
       signal: controller.signal,
     })
       .then((nextResult) =>
@@ -87,11 +83,7 @@ export function VerifyResult({
       });
 
     return () => controller.abort();
-  }, [credentialId, discloseGpa, requestKey]);
-
-  function setGpaDisclosure(nextValue: boolean) {
-    router.push(nextValue ? `${pathname}?disclose=gpa` : pathname);
-  }
+  }, [credentialId, grant, requestKey]);
 
   return (
     <>
@@ -110,10 +102,10 @@ export function VerifyResult({
                 Verification result
               </h1>
             </div>
-            <DisclosureToggle
-              discloseGpa={discloseGpa}
-              onChange={setGpaDisclosure}
-            />
+            <p className="max-w-xs rounded-lg border border-paper/10 bg-ink-900 p-4 text-sm leading-relaxed text-paper-dim">
+              What is disclosed below was chosen by the credential holder. This
+              page cannot request more.
+            </p>
           </div>
 
           <p className="mt-4 break-all text-sm text-paper-dim">
@@ -138,45 +130,6 @@ export function VerifyResult({
   );
 }
 
-function DisclosureToggle({
-  discloseGpa,
-  onChange,
-}: {
-  discloseGpa: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <fieldset className="rounded-lg border border-paper/10 bg-ink-900 p-2">
-      <legend className="sr-only">GPA disclosure</legend>
-      <div className="grid grid-cols-2 gap-1">
-        <button
-          type="button"
-          aria-pressed={!discloseGpa}
-          onClick={() => onChange(false)}
-          className={`min-h-11 rounded-md px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 ${
-            !discloseGpa
-              ? "bg-gold-500 text-ink-950"
-              : "bg-ink-900 text-paper-dim hover:bg-ink-800"
-          }`}
-        >
-          GPA Withheld
-        </button>
-        <button
-          type="button"
-          aria-pressed={discloseGpa}
-          onClick={() => onChange(true)}
-          className={`min-h-11 rounded-md px-4 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500 ${
-            discloseGpa
-              ? "bg-gold-500 text-ink-950"
-              : "bg-ink-900 text-paper-dim hover:bg-ink-800"
-          }`}
-        >
-          GPA Disclosed
-        </button>
-      </div>
-    </fieldset>
-  );
-}
 
 function ProofLoading() {
   return (

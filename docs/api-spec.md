@@ -21,8 +21,46 @@ Versions/endpoints: `midnight-stack.md`. Verification semantics: `smart-contract
 
 ### `GET /verify/{credentialId}`
 
-Verify a credential. Optional `?disclose=gpa` requests GPA disclosure (default:
-withheld).
+Verify a credential. Default disclosure is minimal.
+
+`?grant={grantId}` presents a **share link minted by the credential holder**.
+The GPA is disclosed only when a live grant for that credential says so — a
+verifier has no way to ask for it, because asking was never consent.
+
+`?disclose=gpa` is still accepted and **does nothing**. It was a public query
+parameter that let any visitor reveal the GPA; it is retained only so QR codes
+and certificates printed before share links existed keep resolving.
+
+**Response 404** — `GRANT_NOT_FOUND` when the grant is unknown, revoked, or
+belongs to a different credential. All three return an identical body: a
+verifier must not be able to probe whether a grant ever existed.
+
+### `GET /hold/me`, `POST /hold/grants`, `DELETE /hold/grants/{grantId}`, `POST /hold/resume-check`
+
+The graduate's own surface, under `/api/v1/hold`. Authentication is possession
+of the access link the university handed them, presented as an
+`X-Holder-Token` **header** — never a path segment, because request paths are
+written to the server access log.
+
+- `GET /hold/me` → the credential (institution, degree, year, GPA, status) plus
+  every share link ever minted for it. The GPA comes from a real proof: the
+  off-chain index stores no grades.
+- `POST /hold/grants` `{"revealGpa": bool}` → 201 with `grantId` and the
+  `verifyUrl` to hand an employer.
+- `DELETE /hold/grants/{grantId}` → 200. One-way; the link stops disclosing.
+- `POST /hold/resume-check` `{"resumeText": str}` → each education claim
+  labelled `proven` / `unproven` / `contradicted` against the proven
+  credential. `503 AI_UNAVAILABLE` if extraction is unavailable — no partial
+  results are ever returned.
+
+Every failed holder lookup — wrong token, malformed token, a credential issued
+before student access existed — returns one identical 404.
+
+### `GET /credentials/{credentialId}/certificate`
+
+**Response 200** `application/pdf`. Scoped to the issuing institution; another
+issuer's credential reads as absent rather than forbidden. The certificate
+carries no student name — the index never stored one — and says so on its face.
 
 **Response 200**
 

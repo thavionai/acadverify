@@ -11,7 +11,10 @@ export default async function CredentialVerifyPage(
     props.params,
     props.searchParams,
   ]);
-  const disclose = searchParams.disclose === "gpa";
+  // A share link minted by the holder. `disclose` is deliberately not read any
+  // more: it was a public query parameter that let any verifier reveal the GPA,
+  // which is the opposite of the graduate deciding.
+  const grant = typeof searchParams.grant === "string" ? searchParams.grant : undefined;
 
-  return <VerifyResult credentialId={credentialId} discloseGpa={disclose} />;
+  return <VerifyResult credentialId={credentialId} grant={grant} />;
 }

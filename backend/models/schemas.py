@@ -21,6 +21,12 @@ class CredentialIndexItem(BaseModel):
     # existed have no value; those are treated as unowned and hidden rather
     # than shown to everyone (see list_credentials).
     issuer_address: str | None = None
+    # sha256 of the holder's access token. The token itself is NEVER stored —
+    # it is returned once at issuance and thereafter only ever compared as a
+    # digest, so a leaked index cannot be turned back into working access
+    # links. Optional because rows written before holder access existed have
+    # no token; those can never match (see routers/holder.py).
+    holder_token_hash: str | None = None
     status: CredentialStatus
     created_at: datetime
     updated_at: datetime

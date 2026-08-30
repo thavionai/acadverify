@@ -12,6 +12,8 @@ export type ApiErrorCode =
   | "RATE_LIMITED"
   | "PROOF_SERVICE_UNAVAILABLE"
   | "CHAIN_UNAVAILABLE"
+  | "GRANT_NOT_FOUND"
+  | "AI_UNAVAILABLE"
   | "UNKNOWN_ERROR";
 
 export type DisclosedCredentialFields = {
@@ -147,6 +149,9 @@ export type IssuedCredential = {
   // The backend already renders and stores a real QR PNG; it just was not
   // being displayed, leaving the issue -> certificate -> scan path unfinished.
   qrCodeUrl: string;
+  // The graduate's own access link. Returned exactly once, at issuance — the
+  // server stores only a hash and cannot produce it again.
+  holdUrl: string;
 };
 
 export type RevokeCredentialResult = {
@@ -179,4 +184,60 @@ export type SaveInstitutionInput = {
   website: string;
   contactEmail: string;
   country: string;
+};
+
+
+// ---------------------------------------------------------------------------
+// Holder portal — the graduate's own view of their credential
+// ---------------------------------------------------------------------------
+
+/** A share link the holder minted for one verifier. */
+export type ShareGrant = {
+  grantId: string;
+  revealGpa: boolean;
+  createdAt: string;
+  revoked: boolean;
+  verifyUrl: string;
+};
+
+export type HolderCredential = {
+  id: string;
+  // Null whenever the proof did not succeed — the same rule the public page
+  // follows. A credential that cannot be proven discloses nothing, including
+  // to the person holding it.
+  institution: string | null;
+  degree: string | null;
+  graduationYear: number | null;
+  gpa: number | null;
+  status: VerificationStatus;
+  issuedAt: string;
+  verifyUrl: string;
+};
+
+export type HolderPortalData = {
+  credential: HolderCredential;
+  grants: ShareGrant[];
+};
+
+// ---------------------------------------------------------------------------
+// Resume checker
+// ---------------------------------------------------------------------------
+
+/** proven: the credential backs it. contradicted: the credential says
+ *  otherwise. unproven: this credential simply cannot speak to it — which is
+ *  not an accusation. */
+export type ClaimVerdict = "proven" | "unproven" | "contradicted";
+
+export type ResumeClaim = {
+  type: "degree" | "institution" | "graduationYear" | "gpa" | "other";
+  text: string;
+  value: string;
+  verdict: ClaimVerdict;
+  reason: string;
+};
+
+export type ResumeCheckResult = {
+  claims: ResumeClaim[];
+  summary: Record<ClaimVerdict, number>;
+  checkedAt: string;
 };
