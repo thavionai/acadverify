@@ -33,7 +33,11 @@ export function VerifyLookup() {
 
   function submitCredential(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalized = credentialId.trim();
+    // extractCredentialId was only ever called on the QR-scan path, so a
+    // pasted share link was pushed whole as the credential ID and the lookup
+    // failed — even though the field's own label offers "or share link".
+    // Both entry points now normalise the same way.
+    const normalized = extractCredentialId(credentialId);
 
     if (normalized) {
       router.push(`/verify/${encodeURIComponent(normalized)}`);

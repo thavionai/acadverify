@@ -219,7 +219,7 @@ function VerifiedContent({ result }: { result: VerificationResult }) {
         <p className="mt-2 text-sm leading-6 text-paper-dim">{status.summary}</p>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <FieldPanel title="Disclosed Fields">
           {/* Show ONLY fields that were actually disclosed. A null/empty value
               means the field was not disclosed, and the API already lists it in
@@ -335,9 +335,19 @@ function ProofPanel({ result }: { result: VerificationResult }) {
         />
         <ProofDatum label="Transaction ID" value={result.proof.txId} />
         <ProofDatum label="Proved At" value={result.proof.provedAt} />
+        {/* Three states, not two. A failed proof does not reveal which of the
+            circuit's asserts tripped, so "No" would be an accusation we cannot
+            support — see the note in portal.py. */}
         <ProofDatum
           label="Issuer Authorized"
-          value={result.proof.issuerAuthorized ? "Yes" : "No"}
+          value={
+            result.proof.issuerAuthorized === null ||
+            result.proof.issuerAuthorized === undefined
+              ? "Not established by this proof"
+              : result.proof.issuerAuthorized
+                ? "Yes"
+                : "No"
+          }
         />
         <ProofDatum
           label="Revoked"
@@ -345,7 +355,10 @@ function ProofPanel({ result }: { result: VerificationResult }) {
         />
       </dl>
 
-      <pre className="mt-5 overflow-x-auto rounded-md border border-paper/10 bg-ink-800 p-4 text-sm leading-6 text-paper-dim">
+      {/* min-w-0: a grid/flex item defaults to min-width:auto, which refuses
+          to shrink below its content — so overflow-x-auto alone did nothing
+          and the whole page scrolled sideways on a phone instead. */}
+      <pre className="mt-5 min-w-0 overflow-x-auto rounded-md border border-paper/10 bg-ink-800 p-4 text-sm leading-6 text-paper-dim">
         <code>{indexerQuery}</code>
       </pre>
     </section>

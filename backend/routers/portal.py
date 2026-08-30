@@ -88,12 +88,25 @@ async def verify_credential_public(credential_id: str, request: Request, disclos
     checked_at = evidence.get("checkedAt", datetime.now(timezone.utc).isoformat())
     tx_id = evidence.get("issuanceTxId", "")
 
+    # A proof that did not succeed disclosed NOTHING, and that has to include
+    # the two human-readable fields as well.
+    #
+    # These come from the off-chain index rather than the circuit, so the
+    # earlier fix (which gated only the four chain-derived fields) left them
+    # populated on a failed proof: a REVOKED or INVALID_PROOF credential
+    # rendered "Institution: X / Degree: Y" under the heading *Disclosed
+    # Fields*, next to "Invalid proof". The verifier reads that as "the proof
+    # vouched for the institution and degree" when the proof vouched for
+    # nothing at all — the same category error as the fabricated zeros, one
+    # field over.
+    proof_succeeded = chain_status == "VALID"
+
     disclosed = {
         # Human-readable names come from the off-chain index; the chain
         # only ever sees opaque digests (see chain_service_client._hex32).
-        "institution": index_entry.university_id,
+        "institution": index_entry.university_id if proof_succeeded else None,
         "institutionId": raw_disclosed.get("institutionId") or None,
-        "degree": index_entry.credential_type or "",
+        "degree": (index_entry.credential_type or "") if proof_succeeded else None,
         "degreeCode": raw_disclosed.get("degreeCode"),
         "graduationYear": raw_disclosed.get("graduationYear"),
         "gpa": (gpa_times_100 / 100) if gpa_times_100 is not None else None,
@@ -110,7 +123,14 @@ async def verify_credential_public(credential_id: str, request: Request, disclos
     # show the verifier, a field vanishing from both sides undermines it.
     #
     # Note `is None` rather than falsiness: a real 0.00 GPA is disclosed data.
-    chain_disclosable = ("institutionId", "degreeCode", "graduationYear", "gpa")
+    chain_disclosable = (
+        "institution",
+        "institutionId",
+        "degree",
+        "degreeCode",
+        "graduationYear",
+        "gpa",
+    )
     undisclosed = {key for key in chain_disclosable if disclosed[key] is None}
     withheld = sorted(set(raw.get("withheld") or []) | undisclosed)
 
@@ -119,7 +139,17 @@ async def verify_credential_public(credential_id: str, request: Request, disclos
         "disclosed": disclosed,
         "proof": {
             "verified": proof.get("verified", chain_status == "VALID"),
-            "issuerAuthorized": chain_status != "INVALID_PROOF",
+            # Unknown, not False, on a failed proof.
+            #
+            # proveCredential asserts four things — the credential exists, the
+            # commitment matches, it is not revoked, and the issuer is
+            # authorised — and a failed proof does not say WHICH assert
+            # tripped. Deriving this from the status therefore printed "Issuer
+            # Authorized: No" for a credential whose data had simply been
+            # tampered with, which reads as "this university is not recognised
+            # by the platform": a specific and damaging accusation the system
+            # has no evidence for. Only a successful proof establishes it.
+            "issuerAuthorized": True if chain_status == "VALID" else None,
             "revoked": chain_status == "REVOKED",
             "networkId": evidence.get("networkId", ""),
             "contractAddress": evidence.get("contractAddress", ""),

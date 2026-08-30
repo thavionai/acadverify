@@ -33,12 +33,20 @@ export default function InternalVerificationPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="mt-6 flex max-w-xl gap-3">
+        {/* A placeholder is not an accessible name: it disappears on first
+            keystroke and several screen readers never announce it. This input
+            had only a placeholder, so it was reachable but unannounced.
+            Matches the labelling already used on the public /verify form. */}
+        <label htmlFor="dashboardCredentialId" className="sr-only">
+          Credential ID
+        </label>
         <div className="relative flex-1">
           <IconSearch
             aria-hidden
             className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-paper-muted"
           />
           <input
+            id="dashboardCredentialId"
             value={credentialId}
             onChange={(event) => setCredentialId(event.target.value)}
             placeholder="Enter Credential ID"
