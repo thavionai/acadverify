@@ -18,6 +18,7 @@ const EMPTY_INPUT: IssueCredentialInput = {
   graduationDate: "",
   honors: "",
   gpa: "",
+  studentEmail: "",
 };
 
 const FIELD_CONFIG: Array<{
@@ -37,6 +38,10 @@ const FIELD_CONFIG: Array<{
   { key: "major", label: "Major", type: "text", required: true, placeholder: "Computer Science", span: true },
   { key: "honors", label: "Honors (Optional)", type: "text", required: false, placeholder: "Summa Cum Laude" },
   { key: "gpa", label: "Cumulative GPA", type: "text", required: true, placeholder: "3.95", inputMode: "decimal" },
+  // Optional, and the label says what happens to it. The address is used once
+  // to send the access link and never stored, so leaving it blank simply means
+  // the university passes the link on by hand.
+  { key: "studentEmail", label: "Student Email (Optional — link is emailed once, never stored)", type: "text", required: false, placeholder: "graduate@example.edu", span: true },
 ];
 
 // These are elapsed-time labels, not real progress events — the API is a single
@@ -158,7 +163,7 @@ export function IssueCredentialForm() {
 
   const isSubmitting = formState.phase === "submitting";
   const isValid = FIELD_CONFIG.every(
-    (field) => !field.required || input[field.key].trim().length > 0,
+    (field) => !field.required || (input[field.key] ?? "").trim().length > 0,
   );
 
   return (
@@ -186,7 +191,7 @@ export function IssueCredentialForm() {
                     inputMode={field.inputMode}
                     required={field.required}
                     disabled={isSubmitting}
-                    value={input[field.key]}
+                    value={input[field.key] ?? ""}
                     onChange={(event) => updateField(field.key, event.target.value)}
                     placeholder={field.placeholder}
                     className="min-h-12 w-full rounded-md border border-paper/20 bg-ink-800 px-3 pr-10 text-base text-paper outline-none transition placeholder:text-paper-muted focus:border-gold-500 focus:bg-ink-700 focus:ring-2 focus:ring-gold-500/10 disabled:opacity-60"
@@ -410,6 +415,21 @@ function IssueSuccess({
         GPA and choose what each employer is shown. It is shown once — nothing
         on the server can produce it again.
       </p>
+
+      {/* Only ever rendered when an address was actually given. `false` is the
+          case that matters: the credential is on-chain, the link above is the
+          only copy, and nobody has it yet. */}
+      {credential.emailSent === true && (
+        <p className="mt-2 text-sm leading-relaxed text-gold-500">
+          Emailed to the student. The address was used once and not stored.
+        </p>
+      )}
+      {credential.emailSent === false && (
+        <p className="mt-2 text-sm font-semibold leading-relaxed text-danger-400">
+          The email could not be sent. Copy the link above and give it to the
+          graduate yourself — this is the only copy.
+        </p>
+      )}
 
       <div className="mt-5 flex flex-wrap gap-3">
         <button

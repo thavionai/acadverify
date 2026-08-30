@@ -49,6 +49,20 @@ class Settings(BaseSettings):
     # Headroom: the model usually answers in ~6s but has been seen to stall.
     gemini_timeout_seconds: float = 60.0
 
+    # --- Outbound email (optional) -----------------------------------------
+    # Used once, at issuance, to hand the student their own access link. An
+    # empty host disables the mailer: issuance still returns holdUrl, and the
+    # university copies it by hand. Nothing here is required to run the app.
+    #
+    # Gmail needs an APP PASSWORD (Account -> Security -> 2-Step Verification
+    # -> App passwords), not the account password.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    # Defaults to smtp_username. Gmail rewrites a From it does not own anyway.
+    smtp_from: str = ""
+
     verify_base_url: str = "https://verify.example.com"
 
     # Comma-separated browser origins allowed to call the API (the Next.js

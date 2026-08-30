@@ -119,6 +119,9 @@ export type CredentialStatusFilter = "ALL" | CredentialStatus;
 
 export type IssueCredentialInput = {
   studentName: string;
+  // Optional. Used once to send the access link, then dropped — the server
+  // stores no student identity, so there is no resend.
+  studentEmail?: string;
   studentId: string;
   degree: string;
   institution: string;
@@ -152,6 +155,9 @@ export type IssuedCredential = {
   // The graduate's own access link. Returned exactly once, at issuance — the
   // server stores only a hash and cannot produce it again.
   holdUrl: string;
+  // Three states, not two: null means no address was given, false means one
+  // was and the send failed — in which case holdUrl above is the only copy.
+  emailSent?: boolean | null;
 };
 
 export type RevokeCredentialResult = {

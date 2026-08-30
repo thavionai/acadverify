@@ -29,7 +29,7 @@ from core.client_ip import get_client_ip
 from core.config import get_settings
 from core.security import require_issuer_address
 from models.schemas import CredentialIndexItem, CredentialStatus
-from services import chain_service_client, dynamo_client, s3_client
+from services import chain_service_client, dynamo_client, mailer, s3_client
 from services.certificate import render_certificate_pdf
 from services.qr_generator import build_verify_url, generate_qr_for_credential
 
@@ -209,6 +209,11 @@ class PortalIssueRequest(BaseModel):
     graduationDate: str = ""
     honors: str = ""
     gpa: str = ""
+    # Optional. Used once to send the access link and then dropped -- see
+    # services/mailer.py. Deliberately unvalidated: a malformed address must
+    # surface as emailSent=false, never as a failed issuance, because the
+    # credential is already on-chain by the time the mailer runs.
+    studentEmail: str = ""
 
 
 @router.post("/credentials", status_code=201)
@@ -309,6 +314,19 @@ async def issue_credential_portal(
         logger.exception("Index write failed after issuance for %s", credential_id)
         return _api_error(500, "UNKNOWN_ERROR", "Credential was issued on-chain but the index write failed. Reference: " + credential_id)
 
+    hold_url = f"{get_settings().verify_base_url.rstrip('/')}/hold/{holder_token}"
+
+    # Last, and never fatal. None means no address was given; False means one
+    # was and the send failed -- in which case holdUrl below is the only copy
+    # and the UI tells the university to pass it on by hand.
+    email_sent = (
+        await mailer.send_holder_link(
+            payload.studentEmail.strip(), hold_url, payload.institution, payload.degree
+        )
+        if payload.studentEmail.strip()
+        else None
+    )
+
     return {
         "id": credential_id,
         "commitmentHash": (chain_result.get("chain") or {}).get("commitment", ""),
@@ -318,7 +336,8 @@ async def issue_credential_portal(
         "qrCodeUrl": qr_public_url,
         # Returned exactly once. The university hands this to the graduate;
         # nothing on the server can produce it again.
-        "holdUrl": f"{get_settings().verify_base_url.rstrip('/')}/hold/{holder_token}",
+        "holdUrl": hold_url,
+        "emailSent": email_sent,
     }
 
 
