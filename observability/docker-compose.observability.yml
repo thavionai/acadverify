@@ -52,9 +52,15 @@ services:
       - "8081:8080"
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+      # Explicit, and load-bearing on Docker Desktop for macOS. The socket
+      # inside /var/run is a symlink to a path on the mac host that does not
+      # resolve inside the Linux VM, so cAdvisor silently never reached the
+      # Docker API: it still read cgroups, but every series came back with an
+      # `id` and no `name`, and every per-container dashboard panel that
+      # filters on name=~".+" rendered "No data".
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     privileged: true
 
   # On Docker Desktop (mac/win) this reports the Linux VM, which is what
