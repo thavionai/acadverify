@@ -7,7 +7,7 @@ early, then re-open every link in a private browser window.
 
 - [x] Public repo — https://github.com/thavionai/acadverify
 - [ ] Demo video ≤ 2:00, **public**, says "Midnight Hackathon" in the first seconds
-- [ ] Video link pasted into `README.md` › Demo
+- [ ] Add `## Demo` block to README with video + Devpost link (dropped in the #30 rewrite)
 - [ ] Devpost entry created (title, tagline, description below, video, repo link)
 - [ ] MLH registration + check-in with the **same email** as Devpost
 - [ ] Track: **Integrate Midnight** — prior-work disclosure is in README › Project Status
@@ -35,10 +35,12 @@ forged credential is not "caught" — it cannot produce a proof at all.
 
 **What we built this weekend.** Compact contract (4 circuits) · Node 22
 chain-service over Midnight.js · FastAPI backend · Next.js dashboard + public
-verify page · local devnet (node, indexer, proof server) · 64 unit tests,
-11/11 + 13/13 live smoke tests, salt-leak check 6/6.
+verify page · student portal with per-employer share links · AI resume
+checker (Gemini reads claims, deterministic code judges them, PII stripped
+first) · local devnet (node, indexer, proof server) · 121 backend + 66
+chain-service + 4 browser tests, live smoke tests, salt-leak check.
 
-**What we learned / limitations.** Issuance takes ~19 s (proof-bound);
+**What we learned / limitations.** Issuance takes ~25 s (mostly waiting for 6 s blocks; the proof itself ~2 s);
 verification is instant because it never touches the proof server.
 `credentialId` is disclosed per verification, so we don't claim
 unlinkability. Not yet on `preview` — runs on the local devnet.
@@ -52,6 +54,6 @@ unlinkability. Not yet on `preview` — runs on the local devnet.
 | 0:00 | Name + problem | "This is AcadVerify for the **Midnight Hackathon**. Employers today verify a degree by receiving the whole transcript — and a forged one looks identical." |
 | 0:15 | Happy path | Dashboard › Issue → QR appears → open `/verify/<id>` → **VALID**, disclosed vs withheld split. Then revoke → rescan → **REVOKED**. |
 | 1:20 | Why Midnight | Show the `proveCredential` return struct in `academic_credential.compact`: no `studentId`. "The compiler enforces the privacy, not our discipline. A fake credential can't make a proof." |
-| 1:45 | Evidence + close | Terminal: `npm run compact` (4 circuits) and `npm test` (64 passed). Repo URL on screen. "Verify the degree. Never see the student." |
+| 1:45 | Evidence + close | Terminal: `npm run compact` (4 circuits) and `npm test` (66 passed). Repo URL on screen. "Verify the degree. Never see the student." |
 
 Rehearse twice. Record the terminal output beforehand as a backup clip.
