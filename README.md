@@ -12,8 +12,7 @@ Nothing about the student goes on the chain. Not their name, not their student
 number, not their grades, not even a hash of any of it. And a forged credential
 is not *caught* after the fact. It simply **cannot produce a proof at all**.
 
-Built for the MLH Midnight Hackathon, August 28 to 30, 2026. Track: Integrate
-Midnight.
+Built for the MLH Midnight Hackathon, August 28 to 30, 2026. Track: Beginner Track.
 
 ---
 
